@@ -12,12 +12,14 @@ import {
   isKnativeServing,
   OverviewItem,
   getImageForCSVIcon,
+  getDefaultOperatorIcon,
 } from '@console/shared';
 import { getImageForIconClass } from '@console/internal/components/catalog/catalog-item-icon';
 import {
   tranformKnNodeData,
   filterNonKnativeDeployments,
   filterRevisionsByActiveApplication,
+  createKnativeEventSourceSink,
   NodeType,
 } from '@console/knative-plugin/src/utils/knative-topology-utils';
 import {
@@ -141,7 +143,9 @@ export const createTopologyNodeData = (
   const builderImageIcon =
     getImageForIconClass(`icon-${deploymentsLabels['app.openshift.io/runtime']}`) ||
     getImageForIconClass(`icon-${deploymentsLabels['app.kubernetes.io/name']}`);
-  const defaultIcon = getImageForIconClass(`icon-openshift`);
+  const defaultIcon = operatorBackedService
+    ? getDefaultOperatorIcon()
+    : getImageForIconClass(`icon-openshift`);
 
   return {
     id: dcUID,
@@ -158,7 +162,7 @@ export const createTopologyNodeData = (
         deploymentsAnnotations['app.openshift.io/edit-url'] ||
         getEditURL(deploymentsAnnotations['app.openshift.io/vcs-uri'], cheURL),
       cheEnabled: !!cheURL,
-      builderImage: csvIcon || builderImageIcon || defaultIcon,
+      builderImage: builderImageIcon || csvIcon || defaultIcon,
       isKnativeResource:
         type && (type === 'event-source' || 'knative-revision')
           ? true
@@ -387,7 +391,8 @@ export const transformTopologyData = (
 
   const knSvcResources: K8sResourceKind[] = _.get(resources, ['ksservices', 'data'], []);
   knSvcResources.length && getKnativeTopologyData(knSvcResources, NodeType.KnService);
-  const knEventSources: K8sResourceKind[] = getKnativeEventSources();
+  const knEventSources: K8sResourceKind[] =
+    filters && filters.display.eventSources ? getKnativeEventSources() : [];
   knEventSources.length && getKnativeTopologyData(knEventSources, NodeType.EventSource);
   const knRevResources: K8sResourceKind[] = _.get(resources, ['revisions', 'data'], []);
   knRevResources.length && getKnativeTopologyData(knRevResources, NodeType.Revision);
@@ -549,7 +554,7 @@ export const createTopologyResourceConnection = (
   target: TopologyDataObject,
   replaceTarget: TopologyDataObject = null,
   serviceBindingFlag: boolean,
-): Promise<any> => {
+): Promise<K8sResourceKind[] | K8sResourceKind> => {
   if (!source || !target || source === target) {
     return Promise.reject();
   }
@@ -563,6 +568,19 @@ export const createTopologyResourceConnection = (
   }
 
   return createResourceConnection(sourceObj, targetObj, replaceTargetObj);
+};
+
+export const createTopologySinkConnection = (
+  source: TopologyDataObject,
+  target: TopologyDataObject,
+): Promise<K8sResourceKind> => {
+  if (!source || !target || source === target) {
+    return Promise.reject();
+  }
+  const sourceObj = getTopologyResourceObject(source);
+  const targetObj = getTopologyResourceObject(target);
+
+  return createKnativeEventSourceSink(sourceObj, targetObj);
 };
 
 export const removeTopologyResourceConnection = (
