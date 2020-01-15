@@ -15,6 +15,7 @@ import { MonitoringRoutes } from '../reducers/monitoring';
 import { setMonitoringURL } from './monitoring';
 import { setClusterID, setConsoleLinks, setCreateProjectMessage, setUser } from './ui';
 import { FLAGS } from '../const';
+import * as plugins from '../plugins';
 
 export enum ActionType {
   SetFlag = 'setFlag',
@@ -31,7 +32,7 @@ const retryFlagDetection = (dispatch, cb) => {
   setTimeout(() => cb(dispatch), 15000);
 };
 
-const handleError = (res, flag, dispatch, cb) => {
+export const handleError = (res, flag, dispatch, cb) => {
   const status = _.get(res, 'response.status');
   if (_.includes([403, 502], status)) {
     dispatch(setFlag(flag, undefined));
@@ -111,6 +112,24 @@ const ssarChecks = [
     resourceAttributes: {
       group: 'apiextensions.k8s.io',
       resource: 'customresourcedefinitions',
+      verb: 'list',
+    },
+  },
+  {
+    // TODO: Move into OLM plugin
+    flag: FLAGS.CAN_LIST_OPERATOR_GROUP,
+    resourceAttributes: {
+      group: 'operators.coreos.com',
+      resource: 'operatorgroups',
+      verb: 'list',
+    },
+  },
+  {
+    // TODO: Move into OLM plugin
+    flag: FLAGS.CAN_LIST_PACKAGE_MANIFEST,
+    resourceAttributes: {
+      group: 'operators.coreos.com',
+      resource: 'packagemanifests',
       verb: 'list',
     },
   },
@@ -283,4 +302,5 @@ export const detectFeatures = () => (dispatch: Dispatch) =>
     detectLoggingURL,
     detectConsoleLinks,
     ...ssarCheckActions,
+    ...plugins.registry.getActionFeatureFlags().map((ff) => ff.properties.detect),
   ].forEach((detect) => detect(dispatch));
