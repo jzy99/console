@@ -120,7 +120,12 @@ const Card_: React.FC<CardProps> = ({ panel, pollInterval, timespan, variables }
         <DashboardCardBody>
           {panel.type === 'grafana-piechart-panel' && <BarChart query={queries[0]} />}
           {panel.type === 'graph' && (
-            <Graph pollInterval={pollInterval} queries={queries} timespan={timespan} />
+            <Graph
+              isStack={panel.stack}
+              pollInterval={pollInterval}
+              queries={queries}
+              timespan={timespan}
+            />
           )}
           {panel.type === 'row' && !_.isEmpty(panel.panels) && (
             <div className="row">
@@ -237,10 +242,10 @@ const MonitoringDashboardsPage_: React.FC<MonitoringDashboardsPageProps> = ({
   clearVariables,
   patchVariable,
 }) => {
-  const [pollInterval, setPollInterval] = React.useState<number>(
+  const [pollInterval, setPollInterval] = React.useState(
     parsePrometheusDuration(defaultPollInterval),
   );
-  const [timespan, setTimespan] = React.useState<number>(parsePrometheusDuration(defaultTimespan));
+  const [timespan, setTimespan] = React.useState(parsePrometheusDuration(defaultTimespan));
   const [board, setBoard] = React.useState(boards[0]);
 
   const onBoardChange = (newBoard: string) => {
@@ -283,9 +288,9 @@ const MonitoringDashboardsPage_: React.FC<MonitoringDashboardsPageProps> = ({
         {board && (
           <Board
             board={board}
-            timespan={timespan}
             patchVariable={patchVariable}
             pollInterval={pollInterval}
+            timespan={timespan}
           />
         )}
       </Dashboard>

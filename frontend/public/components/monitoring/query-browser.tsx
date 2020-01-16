@@ -3,9 +3,11 @@ import * as React from 'react';
 import * as _ from 'lodash-es';
 import {
   Chart,
+  ChartArea,
   ChartAxis,
   ChartGroup,
   ChartLine,
+  ChartStack,
   ChartThemeColor,
   ChartThemeVariant,
   ChartTooltip,
@@ -223,59 +225,78 @@ const graphContainer = (
   />
 );
 
-const Graph: React.FC<GraphProps> = React.memo(({ allSeries, disabledSeries, span, xDomain }) => {
-  const [containerRef, width] = useRefWidth();
+const Graph: React.FC<GraphProps> = React.memo(
+  ({ allSeries, disabledSeries, isStack, span, xDomain }) => {
+    const [containerRef, width] = useRefWidth();
 
-  // Remove any disabled series
-  const data = _.flatMap(allSeries, (series, i) => {
-    return _.map(series, ([metric, values]) => {
-      return _.some(disabledSeries[i], (s) => _.isEqual(s, metric)) ? [{}] : values;
+    // Remove any disabled series
+    const data = _.flatMap(allSeries, (series, i) => {
+      return _.map(series, ([metric, values]) => {
+        return _.some(disabledSeries[i], (s) => _.isEqual(s, metric)) ? [{}] : values;
+      });
     });
-  });
 
-  // Set a reasonable Y-axis range based on the min and max values in the data
-  const findMin = (series) => _.minBy(series, 'y');
-  const findMax = (series) => _.maxBy(series, 'y');
-  let minY = _.get(findMin(_.map(data, findMin)), 'y', 0);
-  let maxY = _.get(findMax(_.map(data, findMax)), 'y', 0);
-  if (minY === 0 && maxY === 0) {
-    minY = -1;
-    maxY = 1;
-  } else if (minY > 0 && maxY > 0) {
-    minY = 0;
-  } else if (minY < 0 && maxY < 0) {
-    maxY = 0;
-  }
+    const domain = { x: xDomain || [Date.now() - span, Date.now()], y: undefined };
 
-  const xTickFormat = span < 5 * 60 * 1000 ? twentyFourHourTimeWithSeconds : twentyFourHourTime;
+    let yTickFormat = formatValue;
 
-  const yTickFormat =
-    Math.abs(maxY - minY) < 0.005 ? (v) => (v === 0 ? '0' : v.toExponential(1)) : formatValue;
+    if (!isStack) {
+      // Set a reasonable Y-axis range based on the min and max values in the data
+      const findMin = (series) => _.minBy(series, 'y');
+      const findMax = (series) => _.maxBy(series, 'y');
+      let minY = _.get(findMin(_.map(data, findMin)), 'y', 0);
+      let maxY = _.get(findMax(_.map(data, findMax)), 'y', 0);
+      if (minY === 0 && maxY === 0) {
+        minY = -1;
+        maxY = 1;
+      } else if (minY > 0 && maxY > 0) {
+        minY = 0;
+      } else if (minY < 0 && maxY < 0) {
+        maxY = 0;
+      }
 
-  return (
-    <div ref={containerRef} style={{ width: '100%' }}>
-      {width > 0 && (
-        <Chart
-          containerComponent={graphContainer}
-          domain={{ x: xDomain || [Date.now() - span, Date.now()], y: [minY, maxY] }}
-          domainPadding={{ y: 1 }}
-          height={200}
-          scale={{ x: 'time', y: 'linear' }}
-          theme={chartTheme}
-          width={width}
-        >
-          <ChartAxis tickCount={5} tickFormat={xTickFormat} />
-          <ChartAxis crossAxis={false} dependentAxis tickCount={6} tickFormat={yTickFormat} />
-          <ChartGroup>
-            {_.map(data, (values, i) => (
-              <ChartLine key={i} data={values} />
-            ))}
-          </ChartGroup>
-        </Chart>
-      )}
-    </div>
-  );
-});
+      domain.y = [minY, maxY];
+
+      if (Math.abs(maxY - minY) < 0.005) {
+        yTickFormat = (v) => (v === 0 ? '0' : v.toExponential(1));
+      }
+    }
+
+    const xTickFormat = span < 5 * 60 * 1000 ? twentyFourHourTimeWithSeconds : twentyFourHourTime;
+
+    return (
+      <div ref={containerRef} style={{ width: '100%' }}>
+        {width > 0 && (
+          <Chart
+            containerComponent={graphContainer}
+            domain={domain}
+            domainPadding={{ y: 1 }}
+            height={200}
+            scale={{ x: 'time', y: 'linear' }}
+            theme={chartTheme}
+            width={width}
+          >
+            <ChartAxis tickCount={5} tickFormat={xTickFormat} />
+            <ChartAxis crossAxis={false} dependentAxis tickCount={6} tickFormat={yTickFormat} />
+            {isStack ? (
+              <ChartStack>
+                {_.map(data, (values, i) => (
+                  <ChartArea key={i} data={values} />
+                ))}
+              </ChartStack>
+            ) : (
+              <ChartGroup>
+                {_.map(data, (values, i) => (
+                  <ChartLine key={i} data={values} />
+                ))}
+              </ChartGroup>
+            )}
+          </Chart>
+        )}
+      </div>
+    );
+  },
+);
 
 const formatSeriesValues = (
   values: PrometheusValue[],
@@ -290,8 +311,8 @@ const formatSeriesValues = (
     };
   });
 
-  // The data may have missing values, so we fill those gaps with nulls so that the graph correctly shows the
-  // missing values as gaps in the line
+  // The data may have missing values, so we fill those gaps with nulls so that the graph correctly
+  // shows the missing values as gaps in the line
   const start = Number(_.get(newValues, '[0].x'));
   const end = Number(_.get(_.last(newValues), 'x'));
   const step = span / samples;
@@ -315,8 +336,8 @@ const maxDataPointsHard = 10000;
 const minSamples = 10;
 const maxSamples = 300;
 
-// We don't want to refresh all the graph data for just a small adjustment in the number of samples, so don't update
-// unless the number of samples would change by at least this proportion
+// We don't want to refresh all the graph data for just a small adjustment in the number of samples,
+// so don't update unless the number of samples would change by at least this proportion
 const samplesLeeway = 0.2;
 
 // Minimum step (milliseconds between data samples) because tiny steps reduce performance for almost no benefit
@@ -331,6 +352,7 @@ const minPollInterval = 10 * 1000;
 const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
   allSeries,
   disabledSeries,
+  isStack,
   onZoom,
   span,
   xDomain,
@@ -386,28 +408,38 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
           style={{ left: Math.min(x1, x2), width: Math.abs(x1 - x2) }}
         />
       )}
-      <Graph allSeries={allSeries} disabledSeries={disabledSeries} span={span} xDomain={xDomain} />
+      <Graph
+        allSeries={allSeries}
+        disabledSeries={disabledSeries}
+        isStack={isStack}
+        span={span}
+        xDomain={xDomain}
+      />
     </div>
   );
 };
 
 const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   defaultSamples,
-  defaultTimespan,
+  defaultTimespan = parsePrometheusDuration('30m'),
   disabledSeries = [],
   filterLabels,
   GraphLink,
   hideControls,
   hideGraphs,
+  isStack = false,
   namespace,
   patchQuery,
   pollInterval,
   queries,
+  timespan,
 }) => {
-  // For the default time span, use the first of the suggested span options that is at least as long as defaultTimespan
+  // For the default time span, use the first of the suggested span options that is at least as long
+  // as defaultTimespan
   const defaultSpanText = spans.find((s) => parsePrometheusDuration(s) >= defaultTimespan);
 
-  const [span, setSpan] = React.useState(parsePrometheusDuration(defaultSpanText));
+  // If we have both `timespan` and `defaultTimespan`, `timespan` takes precedence
+  const [span, setSpan] = React.useState(timespan || parsePrometheusDuration(defaultSpanText));
 
   // Limit the number of samples so that the step size doesn't fall below minStep
   const maxSamplesForSpan =
@@ -423,6 +455,13 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   const endTime = _.get(xDomain, '[1]');
 
   const safeFetch = useSafeFetch();
+
+  // If provided, `timespan` overrides any existing span setting
+  React.useEffect(() => {
+    if (timespan) {
+      setSpan(timespan);
+    }
+  }, [timespan]);
 
   const safeFetchQuery = (query: string) => {
     if (_.isEmpty(query)) {
@@ -500,8 +539,8 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
             }
           });
 
-  // Don't poll if an end time was set (because the latest data is not displayed) or if the graph is hidden. Otherwise
-  // use a polling interval relative to the graph's timespan.
+  // Don't poll if an end time was set (because the latest data is not displayed) or if the graph is
+  // hidden. Otherwise use a polling interval relative to the graph's timespan.
   const tickInterval =
     pollInterval === undefined ? Math.max(span / 120, minPollInterval) : pollInterval;
   const delay = endTime || hideGraphs ? null : tickInterval;
@@ -585,6 +624,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
             <ZoomableGraph
               allSeries={graphData}
               disabledSeries={disabledSeries}
+              isStack={isStack}
               onZoom={onZoom}
               span={span}
               xDomain={xDomain}
@@ -627,6 +667,7 @@ type PrometheusValue = [number, string];
 type GraphProps = {
   allSeries: Series[];
   disabledSeries?: Labels[][];
+  isStack?: boolean;
   span: number;
   xDomain?: AxisDomain;
 };
@@ -634,6 +675,7 @@ type GraphProps = {
 type ZoomableGraphProps = {
   allSeries: Series[];
   disabledSeries?: Labels[][];
+  isStack?: boolean;
   onZoom: (from: number, to: number) => void;
   span: number;
   xDomain?: AxisDomain;
@@ -641,16 +683,18 @@ type ZoomableGraphProps = {
 
 type QueryBrowserProps = {
   defaultSamples?: number;
-  defaultTimespan: number;
+  defaultTimespan?: number;
   disabledSeries?: Labels[][];
   filterLabels?: Labels;
   GraphLink?: React.ComponentType<{}>;
   hideControls?: boolean;
   hideGraphs: boolean;
+  isStack?: boolean;
   namespace?: string;
   patchQuery: (index: number, patch: QueryObj) => any;
   pollInterval?: number;
   queries: string[];
+  timespan?: number;
 };
 
 type SpanControlsProps = {

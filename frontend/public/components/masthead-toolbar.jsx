@@ -19,10 +19,9 @@ import {
   ToolbarItem,
 } from '@patternfly/react-core';
 import classNames from 'classnames';
-
-import * as UIActions from '../actions/ui';
+import { FLAGS, YellowExclamationTriangleIcon } from '@console/shared';
+import { formatNamespacedRouteForResource } from '@console/shared/src/utils';
 import { connectToFlags, flagPending } from '../reducers/features';
-import { FLAGS } from '../const';
 import { authSvc } from '../module/auth';
 import { getOCMLink } from '../module/k8s';
 import { history, Firehose } from './utils';
@@ -34,7 +33,6 @@ import {
   getReportBugLink,
 } from '../module/k8s/cluster-settings';
 import * as openshiftLogoImg from '../imgs/logos/openshift.svg';
-import { YellowExclamationTriangleIcon } from '@console/shared';
 
 const SystemStatusButton = ({ statuspageData, className }) =>
   !_.isEmpty(_.get(statuspageData, 'incidents')) ? (
@@ -173,10 +171,7 @@ class MastheadToolbarContents_ extends React.Component {
 
   _onImportYAML(e) {
     e.preventDefault();
-    const importYAMLPath = UIActions.formatNamespacedRouteForResource(
-      'import',
-      this.props.activeNamespace,
-    );
+    const importYAMLPath = formatNamespacedRouteForResource('import', this.props.activeNamespace);
     history.push(importYAMLPath);
   }
 

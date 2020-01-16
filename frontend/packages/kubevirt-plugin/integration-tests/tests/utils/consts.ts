@@ -1,11 +1,12 @@
 import { execSync } from 'child_process';
 
-export const DASH = '-';
 export const { STORAGE_CLASS = 'rook-ceph-block' } = process.env;
 
 const rhelTinyCommonTemplateName = execSync(
   "kubectl get template -n openshift | grep rhel7-desktop-tiny | awk '{print $1}'",
 ).toString();
+
+export const NOT_AVAILABLE = 'Not available';
 
 // TIMEOUTS
 const SEC = 1000;
@@ -56,6 +57,7 @@ export const COMMON_TEMPLATES_REVISION = '1';
 
 export enum TAB {
   Consoles = 'Consoles',
+  Dashboard = 'Dashboard',
   Disks = 'Disks',
   Events = 'Events',
   NetworkInterfaces = 'Network Interfaces',
