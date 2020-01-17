@@ -9,11 +9,15 @@ import {
   ResourceDetailsPage,
   RoutePage,
   DevCatalogModel,
+  DashboardsOverviewHealthOperator,
 } from '@console/plugin-sdk';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { normalizeClusterServiceVersions } from './dev-catalog';
 import * as models from './models';
 import { Flags } from './const';
+import { getClusterServiceVersionsWithStatuses } from './components/dashboard/utils';
+import { ClusterServiceVersionKind } from './types';
+
 import './style.scss';
 
 type ConsumedExtensions =
@@ -24,7 +28,8 @@ type ConsumedExtensions =
   | ResourceListPage
   | ResourceDetailsPage
   | RoutePage
-  | DevCatalogModel;
+  | DevCatalogModel
+  | DashboardsOverviewHealthOperator<ClusterServiceVersionKind>;
 
 const plugin: Plugin<ConsumedExtensions> = [
   {
@@ -36,8 +41,8 @@ const plugin: Plugin<ConsumedExtensions> = [
   {
     type: 'FeatureFlag/Model',
     properties: {
-      model: models.PackageManifestModel,
-      flag: Flags.CAN_LIST_PACKAGE_MANIFEST,
+      model: models.ClusterServiceVersionModel,
+      flag: Flags.OPERATOR_LIFECYCLE_MANAGER,
     },
   },
   {
@@ -247,6 +252,29 @@ const plugin: Plugin<ConsumedExtensions> = [
       loader: async () =>
         (await import('./components/install-plan' /* webpackChunkName: "install-plan" */))
           .InstallPlansPage,
+    },
+  },
+  {
+    type: 'Dashboards/Overview/Health/Operator',
+    properties: {
+      title: 'Operators',
+      resources: [
+        {
+          kind: referenceForModel(models.ClusterServiceVersionModel),
+          isList: true,
+          prop: 'clusterServiceVersions',
+        },
+        {
+          kind: referenceForModel(models.SubscriptionModel),
+          prop: 'subscriptions',
+          isList: true,
+        },
+      ],
+      getOperatorsWithStatuses: getClusterServiceVersionsWithStatuses,
+      operatorRowLoader: async () =>
+        (await import(
+          './components/dashboard/csv-status' /* webpackChunkName: "csv-dashboard-status" */
+        )).default,
     },
   },
 ];
