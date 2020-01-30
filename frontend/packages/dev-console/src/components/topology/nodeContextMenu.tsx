@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ContextMenuItem, ContextSubMenuItem, GraphElement, Node } from '@console/topology';
+import { ContextMenuItem, ContextSubMenuItem, Node, Graph } from '@console/topology';
 import {
   history,
   KebabItem,
@@ -11,6 +11,7 @@ import {
 import { workloadActions } from './actions/workloadActions';
 import { groupActions } from './actions/groupActions';
 import { nodeActions } from './actions/nodeActions';
+import { graphActions } from './actions/graphActions';
 import { TopologyApplicationObject } from './topology-types';
 
 const onKebabOptionClick = (option: KebabOption) => {
@@ -36,20 +37,22 @@ const createMenuItems = (actions: KebabMenuOption[]) =>
     ),
   );
 
-const workloadContextMenu = (element: Node) =>
+export const workloadContextMenu = (element: Node) =>
   createMenuItems(kebabOptionsToMenu(workloadActions(element.getData())));
 
-const groupContextMenu = (element: Node) => {
+export const groupContextMenu = (element: Node, connectorSource?: Node) => {
   const applicationData: TopologyApplicationObject = {
     id: element.getId(),
     name: element.getLabel(),
-    resources: element.getChildren().map((node: GraphElement) => node.getData()),
+    resources: element.getData().groupResources,
   };
 
-  return createMenuItems(kebabOptionsToMenu(groupActions(applicationData)));
+  return createMenuItems(kebabOptionsToMenu(groupActions(applicationData, connectorSource)));
 };
-
-const nodeContextMenu = (element: Node) =>
+export const nodeContextMenu = (element: Node) =>
   createMenuItems(kebabOptionsToMenu(nodeActions(element.getData())));
 
-export { workloadContextMenu, groupContextMenu, nodeContextMenu };
+export const graphContextMenu = (element: Graph, connectorSource?: Node) =>
+  createMenuItems(
+    kebabOptionsToMenu(graphActions(element.getController().getElements(), connectorSource)),
+  );

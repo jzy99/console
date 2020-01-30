@@ -1,9 +1,11 @@
 .odc-base-edge {
   --edge--drag-active--cursor: grab;
   --edge--stroke-width: 1px;
+  --edge--stroke-dasharray: 0;
   --edge--stroke: var(--pf-global--BackgroundColor--dark-200);
   --edge--fill: var(--pf-global--BackgroundColor--dark-200);
   --edge--opacity: 1;
+  --edge--cursor: pointer;
   --edge--active--fill: var(--pf-global--active-color--400);
   --edge--active--stroke: var(--pf-global--active-color--400);
   --edge--drag-active--opacity: 0.3;
@@ -15,6 +17,7 @@
   cursor: var(--edge--cursor);
   stroke: var(--edge--stroke);
   stroke-width: var(--edge--stroke-width);
+  stroke-dasharray: var(--edge--stroke-dasharray);
   fill: var(--edge--fill);
   opacity: var(--edge--opacity);
 

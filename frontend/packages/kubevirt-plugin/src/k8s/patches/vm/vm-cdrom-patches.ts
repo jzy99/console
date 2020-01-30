@@ -2,14 +2,14 @@ import { last, includes } from 'lodash';
 import { getName } from '@console/shared';
 import { Volume, k8sGet } from '@console/internal/module/k8s';
 import { PatchBuilder, PatchOperation } from '@console/shared/src/k8s';
-import { CD, StorageType } from '../../../components/modals/cdrom-vm-modal/constants';
+import { StorageType } from '../../../components/modals/cdrom-vm-modal/constants';
 import { DataVolumeWrapper } from '../../wrapper/vm/data-volume-wrapper';
 import {
   getDefaultSCAccessMode,
   getDefaultSCVolumeMode,
 } from '../../../selectors/config-map/sc-defaults';
 import { getStorageClassConfigMap } from '../../requests/config-map/storage-class';
-import { VMLikeEntityKind } from '../../../types';
+import { VMLikeEntityKind } from '../../../types/vmLike';
 import {
   getVolumes,
   getDataVolumeTemplates,
@@ -20,6 +20,7 @@ import {
 } from '../../../selectors/vm';
 import { getVMLikePatches } from '../vm-template';
 import { BOOT_ORDER_FIRST, BOOT_ORDER_SECOND } from '../../../constants';
+import { CD } from '../../../components/modals/cdrom-vm-modal/types';
 
 const getNextAvailableBootOrderIndex = (vm: VMLikeEntityKind) => {
   const sortedBootableDevices = getBootableDevicesInOrder(vm);
@@ -141,7 +142,10 @@ export const getCDsPatch = async (vm: VMLikeEntityKind, cds: CD[]) => {
       if (type !== StorageType.URL) {
         // remove unnecessary dataVolumeTemplates
         DATATEMPLATES = DATATEMPLATES.filter((dataVol) =>
-          includes(VOLS.map((vol) => getVolumeDataVolumeName(vol)), dataVol.metadata.name),
+          includes(
+            VOLS.map((vol) => getVolumeDataVolumeName(vol)),
+            dataVol.metadata.name,
+          ),
         );
       }
       if (!existingCD) {

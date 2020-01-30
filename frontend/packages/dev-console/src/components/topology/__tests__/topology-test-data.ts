@@ -1,5 +1,5 @@
 import { FirehoseResult } from '@console/internal/components/utils';
-import { DeploymentKind, PodKind } from '@console/internal/module/k8s';
+import { DeploymentKind, PodKind, EventKind } from '@console/internal/module/k8s';
 import { Model } from '@console/topology';
 import { TopologyDataModel, TopologyDataResources } from '../topology-types';
 
@@ -17,6 +17,7 @@ export const resources: TopologyDataResources = {
   statefulSets: { loaded: true, loadError: '', data: [] },
   pipelineRuns: { loaded: true, loadError: '', data: [] },
   pipelines: { loaded: true, loadError: '', data: [] },
+  events: { loaded: true, loadError: '', data: [] },
 };
 
 export const topologyData: TopologyDataModel = {
@@ -2110,6 +2111,78 @@ export const dataModel: Model = {
   edges: [],
 };
 
+export const sampleHelmChartDeploymentConfig = {
+  kind: 'DeploymentConfig',
+  apiVersion: 'apps/v1',
+  metadata: {
+    name: 'nodejs-helm',
+    namespace: 'testproject1',
+    selfLink: '/apis/apps.openshift.io/v1/namespaces/testproject1/deploymentconfigs/nodejs',
+    uid: 'b69ey0df-3f9382-11e9-02f68-525400680f2',
+    resourceVersion: '732186',
+    generation: 2,
+    creationTimestamp: '2019-04-22T11:58:33Z',
+    labels: {
+      app: 'nodejs-helm',
+      heritage: 'Helm',
+      chart: 'Nodejs',
+      release: 'nodejs-helm-12345',
+    },
+    annotations: {
+      'app.openshift.io/vcs-uri': 'https://github.com/redhat-developer/topology-example',
+      'app.openshift.io/vcs-ref': 'master',
+    },
+  },
+  spec: {
+    strategy: {
+      type: 'Rolling',
+    },
+    template: {
+      metadata: {
+        creationTimestamp: null,
+        labels: {
+          app: 'nodejs-helm',
+          deploymentconfig: 'nodejs-helm',
+        },
+      },
+      spec: {},
+    },
+  },
+  status: {
+    availableReplicas: 1,
+    unavailableReplicas: 0,
+    latestVersion: 1,
+    updatedReplicas: 1,
+    replicas: 1,
+    readyReplicas: 1,
+  },
+};
+
+export const sampleEventsResource: FirehoseResult<EventKind[]> = {
+  loaded: true,
+  loadError: '',
+  data: [
+    {
+      apiVersion: 'v1',
+      kind: 'Event',
+      type: 'Normal',
+      lastTimestamp: '2020-01-23T10:00:47Z',
+      reason: 'Started',
+      firstTimestamp: '2020-01-23T08:21:06Z',
+      involvedObject: {
+        kind: 'Pod',
+        namespace: 'testproject3',
+        name: 'analytics-deployment-59dd7c47d4-2jp7t',
+        uid: 'f5ee90e4-959f-47df-b305-56a78cb047ea',
+      },
+      source: {
+        component: 'kubelet',
+        host: 'ip-10-0-130-190.us-east-2.compute.internal',
+      },
+    },
+  ],
+};
+
 export const MockResources: TopologyDataResources = {
   deployments: sampleDeployments,
   deploymentConfigs: sampleDeploymentConfigs,
@@ -2125,4 +2198,80 @@ export const MockResources: TopologyDataResources = {
   pipelines: samplePipeline,
   pipelineRuns: samplePipelineRun,
   clusterServiceVersions: sampleClusterServiceVersions,
+  events: sampleEventsResource,
+};
+
+export const MockKialiGraphData = {
+  nodes: [
+    {
+      data: {
+        id: '5cd385c1ee3309ae40828b5702ae57fb',
+        nodeType: 'workload',
+        namespace: 'testproject1',
+        workload: 'wit-deployment',
+        app: 'details',
+        version: 'v1',
+        destServices: [
+          {
+            namespace: 'bookinfo',
+            name: 'details',
+          },
+        ],
+        traffic: [
+          {
+            protocol: 'http',
+            rates: {
+              httpIn: '0.04',
+            },
+          },
+        ],
+      },
+    },
+    {
+      data: {
+        id: '240c2314cefc993c5d9479a5c349fbd2',
+        nodeType: 'workload',
+        namespace: 'testproject1',
+        workload: 'analytics-deployment',
+        app: 'productpage',
+        version: 'v1',
+        destServices: [
+          {
+            namespace: 'bookinfo',
+            name: 'productpage',
+          },
+        ],
+        traffic: [
+          {
+            protocol: 'http',
+            rates: {
+              httpIn: '0.04',
+              httpOut: '0.08',
+            },
+          },
+        ],
+      },
+    },
+  ],
+  edges: [
+    {
+      data: {
+        id: 'df66cffc756bf9983dd453837e4e14a7',
+        source: '240c2314cefc993c5d9479a5c349fbd2',
+        target: '5cd385c1ee3309ae40828b5702ae57fb',
+        traffic: {
+          protocol: 'http',
+          rates: {
+            http: '0.04',
+            httpPercentReq: '50.6',
+          },
+          responses: {
+            '200': {
+              '-': '100.0',
+            },
+          },
+        },
+      },
+    },
+  ],
 };

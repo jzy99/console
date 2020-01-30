@@ -79,9 +79,9 @@ const NetworkPolicyTableRow = ({ obj: np, index, key, style }) => {
       </TableData>
       <TableData className={classNames(tableColumnClasses[2], 'co-break-word')}>
         {_.isEmpty(np.spec.podSelector) ? (
-          <Link to={`/search/ns/${np.metadata.namespace}?kind=Pod`}>{`All pods within ${
-            np.metadata.namespace
-          }`}</Link>
+          <Link
+            to={`/search/ns/${np.metadata.namespace}?kind=Pod`}
+          >{`All pods within ${np.metadata.namespace}`}</Link>
         ) : (
           <Selector selector={np.spec.podSelector} namespace={np.metadata.namespace} />
         )}
@@ -178,7 +178,7 @@ const Details_ = ({ obj: np, flags }) => {
   return (
     <>
       <div className="co-m-pane__body">
-        <SectionHeading text="Namespace Overview" />
+        <SectionHeading text="Namespace Details" />
         <ResourceSummary resource={np} podSelector={'spec.podSelector'} showPodSelector />
       </div>
       <div className="co-m-pane__body">

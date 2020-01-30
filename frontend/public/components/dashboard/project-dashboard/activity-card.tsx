@@ -18,7 +18,7 @@ import { EventKind, K8sKind } from '../../../module/k8s';
 import { FlagsObject, featureReducerName } from '../../../reducers/features';
 import * as plugins from '../../../plugins';
 import { isDashboardsOverviewResourceActivity } from '@console/plugin-sdk';
-import { uniqueResource } from '../dashboards-page/overview-dashboard/utils';
+import { uniqueResource } from '../dashboards-page/cluster-dashboard/utils';
 import { RootState } from '../../../redux';
 import { ProjectDashboardContext } from './project-dashboard-context';
 import { getName } from '@console/shared';
@@ -54,7 +54,7 @@ const getResourceActivities = (flags: FlagsObject, k8sModels: ImmutableMap<strin
 const mapStateToProps = (state: RootState): OngoingActivityReduxProps => ({
   models: state.k8s.getIn(['RESOURCES', 'models']) as ImmutableMap<string, K8sKind>,
   flags: plugins.registry
-    .getRequiredFlags([isDashboardsOverviewResourceActivity])
+    .getGatingFlagNames([isDashboardsOverviewResourceActivity])
     .reduce((allFlags, f) => ({ ...allFlags, [f]: state[featureReducerName].get(f) }), {}),
 });
 

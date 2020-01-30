@@ -153,7 +153,7 @@ export const HorizontalPodAutoscalersDetails: React.FC<HorizontalPodAutoscalersD
 }) => (
   <>
     <div className="co-m-pane__body">
-      <SectionHeading text="Horizontal Pod Autoscaler Overview" />
+      <SectionHeading text="Horizontal Pod Autoscaler Details" />
       <div className="row">
         <div className="col-sm-6">
           <ResourceSummary resource={hpa} />
@@ -194,9 +194,9 @@ const pages = [
   navFactory.editYaml(),
   navFactory.events(ResourceEventStream),
 ];
-export const HorizontalPodAutoscalersDetailsPage: React.FC<
-  HorizontalPodAutoscalersDetailsPageProps
-> = (props) => (
+export const HorizontalPodAutoscalersDetailsPage: React.FC<HorizontalPodAutoscalersDetailsPageProps> = (
+  props,
+) => (
   <DetailsPage
     {...props}
     kind={HorizontalPodAutoscalersReference}

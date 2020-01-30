@@ -3,12 +3,11 @@ import * as _ from 'lodash-es';
 import { Link } from 'react-router-dom';
 import { sortable } from '@patternfly/react-table';
 import * as classNames from 'classnames';
-import { getMachineRole } from '@console/shared';
+import { getMachineAWSPlacement, getMachineRole } from '@console/shared';
 import { MachineModel, MachineDeploymentModel } from '../models';
 import { MachineDeploymentKind, referenceForModel } from '../module/k8s';
 import {
   editCountAction,
-  getAWSPlacement,
   getDesiredReplicas,
   getReadyReplicas,
   MachineCounts,
@@ -118,13 +117,13 @@ type MachineDeploymentTableRowProps = {
 
 const MachineDeploymentDetails: React.SFC<MachineDeploymentDetailsProps> = ({ obj }) => {
   const machineRole = getMachineRole(obj);
-  const { availabilityZone, region } = getAWSPlacement(obj);
+  const { availabilityZone, region } = getMachineAWSPlacement(obj);
   const { minReadySeconds, progressDeadlineSeconds } = obj.spec;
   const rollingUpdateStrategy = _.get(obj, 'spec.strategy.rollingUpdate');
   return (
     <>
       <div className="co-m-pane__body">
-        <SectionHeading text="Machine Deployment Overview" />
+        <SectionHeading text="Machine Deployment Details" />
         <MachineCounts resourceKind={MachineDeploymentModel} resource={obj} />
         <div className="row">
           <div className="col-sm-6">

@@ -35,6 +35,13 @@ export async function fillInput(elem: any, value: string) {
   } while ((await elem.getAttribute('value')) !== value && attempts > 0);
 }
 
+export async function setCheckboxState(elem: any, targetState: boolean) {
+  const checkboxState = await elem.isSelected();
+  if (checkboxState !== targetState) {
+    await click(elem);
+  }
+}
+
 export async function createProject(name: string) {
   // Use projects if OpenShift so non-admin users can run tests.
   const resource = browser.params.openshift === 'true' ? 'projects' : 'namespaces';
@@ -93,8 +100,10 @@ export async function getSelectOptions(selector: any): Promise<string[]> {
       .then((text) => options.push(text))
       .catch((err) => Promise.reject(err));
   });
-  if (options.length > 0 && options[0].startsWith('---')) {
-    return options.slice(1);
+  if (options.length > 0) {
+    if (options[0].startsWith('---') || options[0].startsWith('Please select')) {
+      return options.slice(1);
+    }
   }
   return options;
 }

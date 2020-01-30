@@ -1,15 +1,22 @@
-import { K8sResourceKind, MachineKind, NodeKind } from '@console/internal/module/k8s';
+import {
+  K8sResourceKind,
+  MachineKind,
+  MachineSetKind,
+  NodeKind,
+} from '@console/internal/module/k8s';
 import { BareMetalHostKind } from '../types';
 
 export type StatusProps = {
   status: string;
   title?: string;
+  description?: string;
   [key: string]: any;
 };
 
 export type BareMetalHostBundle = {
   metadata?: { name: string };
-  machine: MachineKind;
+  machine?: MachineKind;
+  machineSet?: MachineSetKind;
   node: NodeKind;
   host: BareMetalHostKind;
   nodeMaintenance: K8sResourceKind;

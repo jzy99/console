@@ -5,11 +5,13 @@ reviewers:
   - cloudbehl
   - gnehapk
   - rawagner
+  - shyRozen
 approvers:
   - afreen23
   - bipuladh
   - cloudbehl
   - gnehapk
   - rawagner
+  - shyRozen
 labels:
   - component/ceph

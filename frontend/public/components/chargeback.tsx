@@ -38,9 +38,7 @@ const { common } = Kebab.factory;
 const menuActions = [...Kebab.getExtensionsActionsForKind(ChargebackReportModel), ...common];
 
 const dataURL = (obj, format = 'json') => {
-  return `${window.SERVER_FLAGS.meteringBaseURL}/api/v2/reports/${obj.metadata.namespace}/${
-    obj.metadata.name
-  }/table?format=${format}`;
+  return `${window.SERVER_FLAGS.meteringBaseURL}/api/v2/reports/${obj.metadata.namespace}/${obj.metadata.name}/table?format=${format}`;
 };
 
 const ChargebackNavBar: React.SFC<{ match: { url: string } }> = (props) => (
@@ -156,7 +154,7 @@ class ReportsDetails extends React.Component<ReportsDetailsProps> {
     return (
       <div>
         <div className="co-m-pane__body">
-          <SectionHeading text="Report Overview" />
+          <SectionHeading text="Report Details" />
           <div className="row">
             <div className="col-sm-6 col-xs-12">
               <ResourceSummary resource={obj} />
@@ -290,7 +288,7 @@ class ReportData extends React.Component<ReportDataProps, ReportDataState> {
     this.fetchData();
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     // if request is still inFlight or props haven't changed then return
     if (this.state.inFlight || _.isEqual(this.props, nextProps)) {
       return;
@@ -618,9 +616,9 @@ const reportGenerationQueryPages = [
   navFactory.details(ReportGenerationQueriesDetails),
   navFactory.editYaml(),
 ];
-export const ReportGenerationQueriesDetailsPage: React.SFC<
-  ReportGenerationQueriesDetailsPageProps
-> = (props) => {
+export const ReportGenerationQueriesDetailsPage: React.SFC<ReportGenerationQueriesDetailsPageProps> = (
+  props,
+) => {
   return (
     <DetailsPage
       {...props}

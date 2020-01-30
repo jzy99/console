@@ -22,6 +22,7 @@ export const VM_IP_ASSIGNMENT_TIMEOUT_SECS = 180 * SEC;
 export const VM_IMPORT_TIMEOUT_SECS = 160 * SEC;
 export const WINDOWS_IMPORT_TIMEOUT_SECS = 150 * SEC;
 export const VM_CREATE_AND_EDIT_TIMEOUT_SECS = 200 * SEC;
+export const VM_CREATE_AND_EDIT_AND_CLOUDINIT_TIMEOUT_SECS = 15 * 60 * SEC;
 
 export const POD_CREATION_TIMEOUT_SECS = 40 * SEC;
 export const POD_TERMINATION_TIMEOUT_SECS = 30 * SEC;
@@ -29,8 +30,13 @@ export const POD_CREATE_DELETE_TIMEOUT_SECS =
   POD_CREATION_TIMEOUT_SECS + POD_TERMINATION_TIMEOUT_SECS;
 
 export const NODE_STOP_MAINTENANCE_TIMEOUT = 40 * SEC;
-export const JASMINE_EXTENDED_TIMEOUT_INTERVAL = 500000;
+export const JASMINE_EXTENDED_TIMEOUT_INTERVAL = 500 * SEC;
 
+export const V2V_INSTANCE_CONNECTION_TIMEOUT = 30 * SEC;
+export const V2V_VM_IMPORT_TIMEOUT = 3600 * SEC;
+
+// Import Wizard strings
+export const IMPORT_WIZARD_CONN_TO_NEW_INSTANCE = 'Connect to New Instance';
 // Web-UI Exceptions
 export const WAIT_TIMEOUT_ERROR = 'Wait Timeout Error.';
 export const WIZARD_CREATE_VM_SUCCESS = 'Successfully created virtual machine';

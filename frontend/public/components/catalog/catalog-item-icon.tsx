@@ -37,6 +37,7 @@ import * as goGopherImg from '../../imgs/logos/go-gopher.svg';
 import * as grailsImg from '../../imgs/logos/grails.svg';
 import * as hadoopImg from '../../imgs/logos/hadoop.svg';
 import * as haproxyImg from '../../imgs/logos/haproxy.svg';
+import * as helmImg from '../../imgs/logos/helm.svg';
 import * as infinispanImg from '../../imgs/logos/infinispan.svg';
 import * as jbossImg from '../../imgs/logos/jboss.svg';
 import * as jenkinsImg from '../../imgs/logos/jenkins.svg';
@@ -126,6 +127,7 @@ const logos = new Map()
   .set('icon-grails', grailsImg)
   .set('icon-hadoop', hadoopImg)
   .set('icon-haproxy', haproxyImg)
+  .set('icon-helm', helmImg)
   .set('icon-infinispan', infinispanImg)
   .set('icon-jboss', jbossImg)
   .set('icon-jenkins', jenkinsImg)

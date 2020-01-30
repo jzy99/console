@@ -1,5 +1,6 @@
 import { get } from 'lodash';
 import { getName, getNamespace, getOwnerReferences } from '@console/shared/src/selectors';
+import { compareOwnerReference } from '@console/shared/src/utils/owner-references';
 import { PodKind } from '@console/internal/module/k8s';
 import { getLabelValue } from '../selectors';
 import { VMKind } from '../../types';
@@ -9,8 +10,9 @@ import {
   STORAGE_IMPORT_PVC_NAME,
   VIRT_LAUNCHER_POD_PREFIX,
 } from '../../constants';
-import { compareOwnerReference, buildOwnerReferenceForModel } from '../../utils';
+import { buildOwnerReferenceForModel } from '../../utils';
 import { VirtualMachineInstanceModel } from '../../models';
+import { VMILikeEntityKind } from '../../types/vmLike';
 
 export const getHostName = (pod: PodKind) =>
   get(pod, 'spec.hostname') as PodKind['spec']['hostname'];
@@ -46,7 +48,7 @@ export const isPodSchedulable = (pod: PodKind) => {
 };
 
 export const findVMPod = (
-  vm: VMKind,
+  vm: VMILikeEntityKind,
   pods?: PodKind[],
   podNamePrefix = VIRT_LAUNCHER_POD_PREFIX,
 ) => {

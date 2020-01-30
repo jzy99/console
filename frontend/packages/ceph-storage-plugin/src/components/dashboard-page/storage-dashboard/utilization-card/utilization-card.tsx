@@ -1,6 +1,5 @@
 import * as React from 'react';
 import DashboardCard from '@console/shared/src/components/dashboard/dashboard-card/DashboardCard';
-import DashboardCardBody from '@console/shared/src/components/dashboard/dashboard-card/DashboardCardBody';
 import DashboardCardHeader from '@console/shared/src/components/dashboard/dashboard-card/DashboardCardHeader';
 import DashboardCardTitle from '@console/shared/src/components/dashboard/dashboard-card/DashboardCardTitle';
 import { Dropdown } from '@console/internal/components/utils/dropdown';
@@ -11,7 +10,7 @@ import {
 import UtilizationBody from '@console/shared/src/components/dashboard/utilization-card/UtilizationBody';
 import { ByteDataTypes } from '@console/shared/src/graph-helper/data-utils';
 import ConsumerPopover from '@console/shared/src/components/dashboard/utilization-card/TopConsumerPopover';
-import { PrometheusUtilizationItem } from '@console/internal/components/dashboard/dashboards-page/overview-dashboard/utilization-card';
+import { PrometheusUtilizationItem } from '@console/internal/components/dashboard/dashboards-page/cluster-dashboard/utilization-card';
 import {
   useMetricDuration,
   Duration,
@@ -46,46 +45,44 @@ const UtilizationCard: React.FC = () => {
         <DashboardCardTitle>Utilization</DashboardCardTitle>
         <Dropdown items={Duration} onChange={setDuration} selectedKey={duration} title={duration} />
       </DashboardCardHeader>
-      <DashboardCardBody>
-        <UtilizationBody timestamps={timestamps}>
-          <PrometheusUtilizationItem
-            title="Used Capacity"
-            utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.CEPH_CAPACITY_USED]}
-            totalQuery={TOTAL_QUERY[StorageDashboardQuery.CEPH_CAPACITY_TOTAL]}
-            duration={duration}
-            humanizeValue={humanizeBinaryBytes}
-            byteDataType={ByteDataTypes.BinaryBytes}
-            setTimestamps={setTimestamps}
-            TopConsumerPopover={storagePopover}
-          />
-          <PrometheusUtilizationItem
-            title="IOPS"
-            utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_IOPS_QUERY]}
-            duration={duration}
-            humanizeValue={humanizeIOPS}
-          />
-          <PrometheusUtilizationItem
-            title="Latency"
-            utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_LATENCY_QUERY]}
-            duration={duration}
-            humanizeValue={humanizeLatency}
-          />
-          <PrometheusUtilizationItem
-            title="Throughput"
-            utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_THROUGHPUT_QUERY]}
-            duration={duration}
-            humanizeValue={humanizeDecimalBytesPerSec}
-          />
-          <PrometheusUtilizationItem
-            title="Recovery"
-            utilizationQuery={
-              UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_RECOVERY_RATE_QUERY]
-            }
-            duration={duration}
-            humanizeValue={humanizeDecimalBytesPerSec}
-          />
-        </UtilizationBody>
-      </DashboardCardBody>
+      <UtilizationBody timestamps={timestamps}>
+        <PrometheusUtilizationItem
+          title="Used Capacity"
+          utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.CEPH_CAPACITY_USED]}
+          totalQuery={TOTAL_QUERY[StorageDashboardQuery.CEPH_CAPACITY_TOTAL]}
+          duration={duration}
+          humanizeValue={humanizeBinaryBytes}
+          byteDataType={ByteDataTypes.BinaryBytes}
+          setTimestamps={setTimestamps}
+          TopConsumerPopover={storagePopover}
+        />
+        <PrometheusUtilizationItem
+          title="IOPS"
+          utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_IOPS_QUERY]}
+          duration={duration}
+          humanizeValue={humanizeIOPS}
+        />
+        <PrometheusUtilizationItem
+          title="Latency"
+          utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_LATENCY_QUERY]}
+          duration={duration}
+          humanizeValue={humanizeLatency}
+        />
+        <PrometheusUtilizationItem
+          title="Throughput"
+          utilizationQuery={UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_THROUGHPUT_QUERY]}
+          duration={duration}
+          humanizeValue={humanizeDecimalBytesPerSec}
+        />
+        <PrometheusUtilizationItem
+          title="Recovery"
+          utilizationQuery={
+            UTILIZATION_QUERY[StorageDashboardQuery.UTILIZATION_RECOVERY_RATE_QUERY]
+          }
+          duration={duration}
+          humanizeValue={humanizeDecimalBytesPerSec}
+        />
+      </UtilizationBody>
     </DashboardCard>
   );
 };

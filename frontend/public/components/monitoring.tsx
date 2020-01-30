@@ -37,8 +37,8 @@ import { Labels, QueryBrowser, QueryObj } from './monitoring/query-browser';
 import { CheckBoxes } from './row-filter';
 import { formatPrometheusDuration } from './utils/datetime';
 import { withFallback } from './utils/error-boundary';
-import { AlertManagerYAMLEditorWrapper } from './monitoring/alert-manager-yaml-editor';
-import { AlertManagerConfigWrapper } from './monitoring/alert-manager-config';
+import { AlertmanagerYAMLEditorWrapper } from './monitoring/alert-manager-yaml-editor';
+import { AlertmanagerConfigWrapper } from './monitoring/alert-manager-config';
 import {
   ActionsMenu,
   ButtonBar,
@@ -261,10 +261,7 @@ const Graph_: React.FC<GraphProps> = ({
     />
   );
 };
-const Graph = connect(
-  graphStateToProps,
-  { patchQuery: UIActions.queryBrowserPatchQuery },
-)(Graph_);
+const Graph = connect(graphStateToProps, { patchQuery: UIActions.queryBrowserPatchQuery })(Graph_);
 
 const SilenceMatchersList = ({ silence }) => (
   <div className={`co-text-${SilenceResource.kind.toLowerCase()}`}>
@@ -321,7 +318,7 @@ const AlertsDetailsPage = withFallback(
           </div>
           <div className="co-m-pane__body">
             {state !== AlertStates.NotFiring && <ToggleGraph />}
-            <SectionHeading text="Alert Overview" />
+            <SectionHeading text="Alert Details" />
             <div className="co-m-pane__body-group">
               <div className="row">
                 <div className="col-sm-12">
@@ -482,7 +479,7 @@ const AlertRulesDetailsPage = withFallback(
           </div>
           <div className="co-m-pane__body">
             <div className="monitoring-heading">
-              <SectionHeading text="Alerting Rule Overview" />
+              <SectionHeading text="Alerting Rule Details" />
             </div>
             <div className="co-m-pane__body-group">
               <div className="row">
@@ -619,7 +616,7 @@ const SilencesDetailsPage = withFallback(
             </h1>
           </div>
           <div className="co-m-pane__body">
-            <SectionHeading text="Silence Overview" />
+            <SectionHeading text="Silence Details" />
             <div className="co-m-pane__body-group">
               <div className="row">
                 <div className="col-sm-6">
@@ -776,15 +773,15 @@ const AlertsPageDescription = () => (
 );
 
 const HeaderAlertmanagerLink_ = ({ path, urls }) =>
-  _.isEmpty(urls[MonitoringRoutes.AlertManager]) ? null : (
+  _.isEmpty(urls[MonitoringRoutes.Alertmanager]) ? null : (
     <span className="monitoring-header-link">
       <ExternalLink
-        href={`${urls[MonitoringRoutes.AlertManager]}${path || ''}`}
+        href={`${urls[MonitoringRoutes.Alertmanager]}${path || ''}`}
         text="Alertmanager UI"
       />
     </span>
   );
-const HeaderAlertmanagerLink = connectToURLs(MonitoringRoutes.AlertManager)(
+const HeaderAlertmanagerLink = connectToURLs(MonitoringRoutes.Alertmanager)(
   HeaderAlertmanagerLink_,
 );
 
@@ -831,7 +828,7 @@ const MonitoringListPage = connect(filtersToProps)(
       history.replace(`${url.pathname}?${params.toString()}${url.hash}`);
     }
 
-    componentWillMount() {
+    UNSAFE_componentWillMount() {
       const { nameFilterID, reduxID } = this.props;
       const params = new URLSearchParams(window.location.search);
 
@@ -1368,7 +1365,7 @@ const CreateSilence = () => {
   );
 };
 
-const AlertManagerYAML = () => {
+const AlertmanagerYAML = () => {
   return (
     <Firehose
       resources={[
@@ -1381,12 +1378,12 @@ const AlertManagerYAML = () => {
         },
       ]}
     >
-      <AlertManagerYAMLEditorWrapper />
+      <AlertmanagerYAMLEditorWrapper />
     </Firehose>
   );
 };
 
-const AlertManagerConfig = () => {
+const AlertmanagerConfig = () => {
   return (
     <Firehose
       resources={[
@@ -1399,7 +1396,7 @@ const AlertManagerConfig = () => {
         },
       ]}
     >
-      <AlertManagerConfigWrapper />
+      <AlertmanagerConfigWrapper />
     </Firehose>
   );
 };
@@ -1409,13 +1406,14 @@ const AlertingPage: React.SFC<AlertingPageProps> = ({ match }) => {
   const silencePath = '/monitoring/silences';
   const YAMLPath = '/monitoring/alertmanageryaml';
   const ConfigPath = '/monitoring/alertmanagerconfig';
+  const isAlertmanager = match.url === ConfigPath || match.url === YAMLPath;
   return (
     <>
       <div className="co-m-nav-title co-m-nav-title--detail">
         <h1 className="co-m-pane__heading">
           <div className="co-m-pane__name co-resource-item">
             <span className="co-resource-item__resource-name" data-test-id="resource-title">
-              Alerting
+              {isAlertmanager ? 'Alertmanager' : 'Alerting'}
             </span>
             <HeaderAlertmanagerLink path="/#/alerts" />
           </div>
@@ -1440,14 +1438,14 @@ const AlertingPage: React.SFC<AlertingPageProps> = ({ match }) => {
             </li>
           </>
         )}
-        {(match.url === ConfigPath || match.url === YAMLPath) && (
+        {isAlertmanager && (
           <>
             <li
               className={classNames('co-m-horizontal-nav__menu-item', {
                 'co-m-horizontal-nav-item--active': match.url === ConfigPath,
               })}
             >
-              <Link to={ConfigPath}>Overview</Link>
+              <Link to={ConfigPath}>Details</Link>
             </li>
             <li
               className={classNames('co-m-horizontal-nav__menu-item', {
@@ -1462,8 +1460,8 @@ const AlertingPage: React.SFC<AlertingPageProps> = ({ match }) => {
       <Switch>
         <Route path="/monitoring/alerts" exact component={AlertsPage} />
         <Route path="/monitoring/silences" exact component={SilencesPage} />
-        <Route path={ConfigPath} exact component={AlertManagerConfig} />
-        <Route path="/monitoring/alertmanageryaml" exact component={AlertManagerYAML} />
+        <Route path={ConfigPath} exact component={AlertmanagerConfig} />
+        <Route path="/monitoring/alertmanageryaml" exact component={AlertmanagerYAML} />
       </Switch>
     </>
   );
@@ -1559,7 +1557,7 @@ const PollerPages = () => {
 export const MonitoringUI = () => (
   <Switch>
     <Redirect from="/monitoring" exact to="/monitoring/alerts" />
-    <Route path="/monitoring/dashboards" exact component={MonitoringDashboardsPage} />
+    <Route path="/monitoring/dashboards/:board?" exact component={MonitoringDashboardsPage} />
     <Route path="/monitoring/query-browser" exact component={QueryBrowserPage} />
     <Route path="/monitoring/silences/~new" exact component={CreateSilence} />
     <Route component={PollerPages} />

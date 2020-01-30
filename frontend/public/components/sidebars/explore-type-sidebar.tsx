@@ -86,7 +86,7 @@ export const ExploreType: React.FC<ExploreTypeProps> = (props) => {
   return (
     <>
       {!_.isEmpty(breadcrumbs) && (
-        <Breadcrumb className="pf-c-breadcrumb--no-padding-top">
+        <Breadcrumb className="pf-c-breadcrumb--no-padding-top co-break-word">
           {breadcrumbs.map((crumb, i) => {
             const isLast = i === breadcrumbs.length - 1;
             return (
@@ -109,7 +109,7 @@ export const ExploreType: React.FC<ExploreTypeProps> = (props) => {
         </Breadcrumb>
       )}
       {description && (
-        <p className="co-break-word co-pre-line">
+        <p className="co-break-word co-pre-wrap">
           <LinkifyExternal>{description}</LinkifyExternal>
         </p>
       )}
@@ -131,7 +131,7 @@ export const ExploreType: React.FC<ExploreTypeProps> = (props) => {
                   </small>
                 </h5>
                 {definition.description && (
-                  <p className="co-break-word co-pre-line">
+                  <p className="co-break-word co-pre-wrap">
                     <LinkifyExternal>{definition.description}</LinkifyExternal>
                   </p>
                 )}

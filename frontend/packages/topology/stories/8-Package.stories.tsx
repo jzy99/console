@@ -51,8 +51,8 @@ const getModel = (layout: string): Model => {
   // create nodes from data
   const nodes: NodeModel[] = data.nodes.map((d) => {
     // randomize size somewhat
-    const width = 10 + d.id.length;
-    const height = 10 + d.id.length;
+    const width = 50 + d.id.length;
+    const height = 50 + d.id.length;
     return {
       id: d.id,
       type: 'node',
@@ -65,16 +65,19 @@ const getModel = (layout: string): Model => {
   });
 
   // create groups from data
-  const groupNodes: NodeModel[] = _.map(_.groupBy(nodes, (n) => n.data.group), (v, k) => ({
-    type: 'group-hull',
-    id: k,
-    group: true,
-    children: v.map((n: NodeModel) => n.id),
-    label: `group-${k}`,
-    style: {
-      padding: 10,
-    },
-  }));
+  const groupNodes: NodeModel[] = _.map(
+    _.groupBy(nodes, (n) => n.data.group),
+    (v, k) => ({
+      type: 'group-hull',
+      id: k,
+      group: true,
+      children: v.map((n: NodeModel) => n.id),
+      label: `group-${k}`,
+      style: {
+        padding: 10,
+      },
+    }),
+  );
 
   // create links from data
   const edges = data.links.map(

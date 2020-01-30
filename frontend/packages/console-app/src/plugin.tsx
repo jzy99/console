@@ -24,6 +24,8 @@ import {
   getPodStatusGroups,
   getPVCStatusGroups,
 } from '@console/shared/src/components/dashboard/inventory-card/utils';
+import { OCSServiceModel } from '@console/ceph-storage-plugin/src/models';
+import { isClusterExpandActivity } from '@console/ceph-storage-plugin/src/components/dashboard-page/storage-dashboard/activity-card/cluster-expand-activity';
 import {
   fetchK8sHealth,
   getK8sHealthState,
@@ -37,8 +39,6 @@ import {
   SCHEDULERS_UP,
 } from './queries';
 import {
-  getClusterOperatorUpgradeTimestamp,
-  isClusterOperatorUpgradeActivity,
   getClusterUpdateTimestamp,
   isClusterUpdateActivity,
 } from './components/dashboards-page/activity';
@@ -58,10 +58,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       id: 'admin',
       name: 'Administrator',
       icon: <CogsIcon />,
+      default: true,
       getLandingPageURL: (flags) =>
         flags[FLAGS.CAN_LIST_NS] ? '/dashboards' : '/k8s/cluster/projects',
       getK8sLandingPageURL: () => '/search',
-      default: true,
       getImportRedirectURL: (project) => `/k8s/cluster/projects/${project}/workloads`,
     },
   },
@@ -81,6 +81,23 @@ const plugin: Plugin<ConsumedExtensions> = [
           './components/dashboards-page/ClusterUpdateActivity' /* webpackChunkName: "console-app" */
         ).then((m) => m.default),
       required: FLAGS.CLUSTER_VERSION,
+    },
+  },
+  {
+    type: 'Dashboards/Overview/Activity/Resource',
+    properties: {
+      k8sResource: {
+        isList: true,
+        kind: referenceForModel(OCSServiceModel),
+        namespaced: false,
+        prop: 'storage-cluster',
+      },
+      isActivity: isClusterExpandActivity,
+      loader: () =>
+        import(
+          '@console/ceph-storage-plugin/src/components/dashboard-page/storage-dashboard/activity-card/cluster-expand-activity' /* webpackChunkName: "ceph-storage-plugin" */
+        ).then((m) => m.ClusterExpandActivity),
+      required: 'CEPH',
     },
   },
   {
@@ -139,24 +156,6 @@ const plugin: Plugin<ConsumedExtensions> = [
       model: PersistentVolumeClaimModel,
       mapper: getPVCStatusGroups,
       useAbbr: true,
-    },
-  },
-  {
-    type: 'Dashboards/Overview/Activity/Resource',
-    properties: {
-      k8sResource: {
-        isList: true,
-        prop: 'clusterOperators',
-        kind: referenceForModel(ClusterOperatorModel),
-        namespaced: false,
-      },
-      isActivity: isClusterOperatorUpgradeActivity,
-      getTimestamp: getClusterOperatorUpgradeTimestamp,
-      loader: () =>
-        import(
-          './components/dashboards-page/ClusterOperatorUpgradeActivity' /* webpackChunkName: "console-app" */
-        ).then((m) => m.default),
-      required: FLAGS.CLUSTER_VERSION,
     },
   },
   {

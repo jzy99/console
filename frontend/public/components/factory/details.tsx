@@ -8,6 +8,7 @@ import {
   PageHeading,
   FirehoseResource,
   KebabOptionsCreator,
+  Page,
 } from '../utils';
 import { K8sResourceKindReference, K8sResourceKind, K8sKind } from '../../module/k8s';
 import { withFallback } from '../utils/error-boundary';
@@ -32,11 +33,11 @@ export const DetailsPage = withFallback<DetailsPageProps>((props) => {
     >
       <PageHeading
         detail={true}
-        title={props.name}
+        title={props.title || props.name}
         titleFunc={props.titleFunc}
         menuActions={props.menuActions}
         buttonActions={props.buttonActions}
-        kind={props.kind}
+        kind={props.customKind || props.kind}
         breadcrumbsFor={
           props.breadcrumbsFor
             ? props.breadcrumbsFor
@@ -47,7 +48,9 @@ export const DetailsPage = withFallback<DetailsPageProps>((props) => {
         customData={props.customData}
         badge={props.badge || getBadgeFromType(props.kindObj && props.kindObj.badge)}
         icon={props.icon}
-      />
+      >
+        {props.children}
+      </PageHeading>
       <HorizontalNav
         pages={props.pages}
         pagesFor={props.pagesFor}
@@ -60,12 +63,6 @@ export const DetailsPage = withFallback<DetailsPageProps>((props) => {
     </Firehose>
   );
 }, ErrorBoundaryFallback);
-
-export type Page = {
-  href: string;
-  name: string;
-  component?: React.ComponentType<any>;
-};
 
 export type DetailsPageProps = {
   match: match<any>;
@@ -86,6 +83,8 @@ export type DetailsPageProps = {
   badge?: React.ReactNode;
   icon?: React.ComponentType<{ obj: K8sResourceKind }>;
   getResourceStatus?: (resource: K8sResourceKind) => string;
+  children?: React.ReactNode;
+  customKind?: string;
 };
 
 DetailsPage.displayName = 'DetailsPage';

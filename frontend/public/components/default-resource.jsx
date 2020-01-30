@@ -97,7 +97,7 @@ const DetailsForKind = (kind) =>
     return (
       <>
         <div className="co-m-pane__body">
-          <SectionHeading text={`${kindForReference(kind)} Overview`} />
+          <SectionHeading text={`${kindForReference(kind)} Details`} />
           <ResourceSummary resource={obj} podSelector="spec.podSelector" showNodeSelector={false} />
         </div>
         {conditions && (
@@ -125,7 +125,7 @@ export const DefaultList = (props) => {
     />
   );
 };
-DefaultList.displayName = DefaultList;
+DefaultList.displayName = 'DefaultList';
 
 export const DefaultPage = (props) => (
   <ListPage

@@ -11,12 +11,13 @@ import {
   ExpandedComponentProps,
 } from '@console/shared/src/components/dashboard/inventory-card/InventoryItem';
 import { PrometheusResponse } from '@console/internal/components/graphs';
-import { Extension } from './extension';
-import { LazyLoader } from './types';
+import { Extension, LazyLoader } from './base';
 
 export interface DashboardsExtensionProperties {
-  /** Name of feature flag for this item. */
+  /** Feature flags which are required for this extension to be effective. */
   required?: string | string[];
+  /** Feature flags which are disallowed for this extension to be effective. */
+  disallowed?: string | string[];
 }
 
 namespace ExtensionProperties {

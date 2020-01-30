@@ -35,7 +35,7 @@ export class DropdownMixin extends React.PureComponent {
     this.hide(event);
   }
 
-  componentWillReceiveProps({ selectedKey, items }) {
+  UNSAFE_componentWillReceiveProps({ selectedKey, items }) {
     if (selectedKey !== this.props.selectedKey) {
       this.setState({ selectedKey, title: items[selectedKey] });
     }
@@ -124,6 +124,7 @@ class DropDownRow extends React.PureComponent {
             className="pf-c-dropdown__menu-item"
             id={`${itemKey}-link`}
             data-test-id="dropdown-menu"
+            data-test-dropdown-menu={itemKey}
             onClick={(e) => onclick(itemKey, e)}
           >
             {content}
@@ -264,8 +265,8 @@ export class Dropdown extends DropdownMixin {
     window.removeEventListener('keydown', this.globalKeyDown);
   }
 
-  componentWillReceiveProps(nextProps) {
-    super.componentWillReceiveProps(nextProps);
+  UNSAFE_componentWillReceiveProps(nextProps) {
+    super.UNSAFE_componentWillReceiveProps(nextProps);
     const props = this.props;
 
     if (_.isEqual(nextProps.items, props.items) && nextProps.title === props.title) {

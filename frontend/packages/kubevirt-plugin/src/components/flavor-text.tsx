@@ -1,18 +1,22 @@
 import * as _ from 'lodash';
-import { convertToBaseValue, humanizeDecimalBytes } from '@console/internal/components/utils';
-import { getFlavor, vCPUCount, getCPU, getMemory, asVM } from '../selectors/vm';
-import { VMLikeEntityKind } from '../types';
+import { convertToBaseValue, humanizeBinaryBytes } from '@console/internal/components/utils';
+import { vCPUCount } from '../selectors/vm';
+import { CPURaw } from '../types/vm';
 
-export const getFlavorText = (vmLike: VMLikeEntityKind) => {
-  const vm = asVM(vmLike);
-
-  const flavor = _.capitalize(getFlavor(vmLike));
-
-  const vcpusCount = vCPUCount(getCPU(vm));
+export const getFlavorText = ({
+  cpu,
+  memory,
+  flavor,
+}: {
+  cpu: CPURaw;
+  memory: string;
+  flavor: string;
+}) => {
+  const vcpusCount = vCPUCount(cpu);
   const vcpusText = `${vcpusCount} vCPU${vcpusCount > 1 ? 's' : ''}`;
 
-  const memoryBase = convertToBaseValue(getMemory(vm));
-  const memoryText = humanizeDecimalBytes(memoryBase).string;
+  const memoryBase = convertToBaseValue(memory);
+  const memoryText = humanizeBinaryBytes(memoryBase).string;
 
-  return `${flavor || ''}${flavor ? ': ' : ''}${vcpusText}, ${memoryText} Memory`;
+  return `${_.capitalize(flavor) || ''}${flavor ? ': ' : ''}${vcpusText}, ${memoryText} Memory`;
 };

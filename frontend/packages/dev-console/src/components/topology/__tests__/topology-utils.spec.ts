@@ -14,9 +14,13 @@ import {
   topologyModelFromDataModel,
   getTopologyResourceObject,
   createTopologyResourceConnection,
+  isHelmReleaseNode,
+  getTopologyHelmReleaseGroupItem,
+  getTrafficConnectors,
 } from '../topology-utils';
 import { DEFAULT_TOPOLOGY_FILTERS } from '../redux/const';
 import { TopologyFilters } from '../filters/filter-utils';
+import { TYPE_HELM_RELEASE, TYPE_OPERATOR_BACKED_SERVICE, TYPE_TRAFFIC_CONNECTOR } from '../const';
 import {
   resources,
   topologyData,
@@ -24,6 +28,9 @@ import {
   topologyDataModel,
   dataModel,
   sampleDeployments,
+  sampleHelmChartDeploymentConfig,
+  sampleDeploymentConfigs,
+  MockKialiGraphData,
 } from './topology-test-data';
 import { MockKnativeResources } from './topology-knative-test-data';
 import { serviceBindingRequest } from './service-binding-test-data';
@@ -70,8 +77,26 @@ describe('TopologyUtils ', () => {
 
   it('should return graph and topology data only for the deployment kind', () => {
     const { graphData, keys } = getTranformedTopologyData(MockResources, ['deployments']);
-    expect(graphData.nodes).toHaveLength(MockResources.deployments.data.length); // should contain only two deployment
-    expect(keys).toHaveLength(MockResources.deployments.data.length); // should contain only two deployment
+    const totalNodes =
+      MockResources.deployments.data.length + MockResources.clusterServiceVersions.data.length;
+    expect(graphData.nodes).toHaveLength(totalNodes); // should contain only two deployment
+    expect(keys).toHaveLength(totalNodes); // should contain only two deployment
+  });
+
+  it('should return graph nodes for operator backed services', () => {
+    const { topologyTransformedData, graphData, keys } = getTranformedTopologyData(MockResources, [
+      'deployments',
+    ]);
+    const totalNodes =
+      MockResources.deployments.data.length + MockResources.clusterServiceVersions.data.length;
+    const operatorBackedServices = _.filter(graphData.nodes, {
+      type: TYPE_OPERATOR_BACKED_SERVICE,
+    });
+    expect(operatorBackedServices).toHaveLength(1);
+    expect(topologyTransformedData[operatorBackedServices[0].id].type).toBe(
+      TYPE_OPERATOR_BACKED_SERVICE,
+    );
+    expect(keys).toHaveLength(totalNodes);
   });
 
   it('should contain edges information for the deployment kind', () => {
@@ -147,6 +172,49 @@ describe('TopologyUtils ', () => {
       'deployments',
     ]);
     expect((topologyTransformedData[keys[0]].data as WorkloadData).isKnativeResource).toBeFalsy();
+  });
+
+  it('should return false for eventWarning if workloads pods have no events of type warning', () => {
+    const { topologyTransformedData, keys } = getTranformedTopologyData(MockResources, [
+      'deploymentConfigs',
+      'deployments',
+    ]);
+    expect((topologyTransformedData[keys[0]].data as WorkloadData).eventWarning).toBe(false);
+  });
+
+  it('should return true for eventWarning if workload pods have events of type warning', () => {
+    const mockResources = {
+      ...MockResources,
+      events: {
+        loaded: true,
+        loadError: '',
+        data: [
+          {
+            apiVersion: 'v1',
+            kind: 'Event',
+            type: 'Warning',
+            lastTimestamp: '2020-01-23T10:00:47Z',
+            reason: 'BackOff',
+            firstTimestamp: '2020-01-23T08:21:06Z',
+            involvedObject: {
+              kind: 'Pod',
+              namespace: 'testproject3',
+              name: 'analytics-deployment-59dd7c47d4-6btjb',
+              uid: 'f5ee90e4-959f-47df-b305-56a78cb047ea',
+            },
+            source: {
+              component: 'kubelet',
+              host: 'ip-10-0-130-190.us-east-2.compute.internal',
+            },
+          },
+        ],
+      },
+    };
+    const { topologyTransformedData, keys } = getTranformedTopologyData(mockResources, [
+      'deployments',
+      'deploymentConfigs',
+    ]);
+    expect((topologyTransformedData[keys[0]].data as WorkloadData).eventWarning).toBe(true);
   });
 
   it('should return a valid pod status for scale to 0', () => {
@@ -298,6 +366,84 @@ describe('TopologyUtils ', () => {
     expect(topologyTransformedData['1317f615-9636-11e9-b134-06a61d886b689'].type).toBe(
       'event-source',
     );
+  });
+  it('should return true for nodes created by helm charts', () => {
+    expect(isHelmReleaseNode(sampleDeploymentConfigs.data[0])).toBe(false);
+    expect(isHelmReleaseNode(sampleHelmChartDeploymentConfig)).toBe(true);
+  });
+
+  it('should add to groups with helm grouping type for a helm chart node', () => {
+    let groups = getTopologyHelmReleaseGroupItem(sampleDeploymentConfigs.data[0], []);
+    expect(groups).toHaveLength(0);
+    groups = getTopologyHelmReleaseGroupItem(sampleHelmChartDeploymentConfig, []);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].type).toEqual(TYPE_HELM_RELEASE);
+  });
+
+  it('should group into Application or Helm based on the checks on label', () => {
+    const dc = { ...sampleDeploymentConfigs.data[0] };
+    dc.metadata.labels = {
+      app: 'nodejs',
+      'app.kubernetes.io/part-of': 'app-1',
+    };
+    const fireHoseDcs = {
+      ...sampleDeploymentConfigs,
+      data: [dc, sampleHelmChartDeploymentConfig],
+    };
+    const data = { ...MockResources, deploymentConfigs: fireHoseDcs };
+    const { graphData } = getTranformedTopologyData(data, ['deploymentConfigs']);
+    expect(graphData.groups).toHaveLength(2);
+    expect(graphData.groups[1].type).toEqual(TYPE_HELM_RELEASE);
+  });
+
+  it('should create a connector using kiali graph data', () => {
+    const expectedEdgeId = `5ca9ae28-680d-11e9-8c69-5254003f9382_60a9b423-680d-11e9-8c69-5254003f9382`;
+    const edges = getTrafficConnectors(MockKialiGraphData, [...sampleDeployments.data]);
+    expect(edges).toHaveLength(1);
+    expect(edges[0].id).toEqual(expectedEdgeId);
+  });
+
+  it('should not create a connector if kiali graph node data doesnt match any on the resource name', () => {
+    const nodeData = MockKialiGraphData.nodes;
+    const kialiData = {
+      nodes: [
+        {
+          data: {
+            ...nodeData[0].data,
+            workload: 'a',
+          },
+        },
+        {
+          data: {
+            ...nodeData[1].data,
+            workload: 'b',
+          },
+        },
+      ],
+      edges: MockKialiGraphData.edges,
+    };
+    const edges = getTrafficConnectors(kialiData, [...sampleDeployments.data]);
+    expect(edges).toHaveLength(0);
+  });
+
+  it('should not have connector of TYPE_TRAFFIC_CONNECTOR if there is not traffic data', () => {
+    const { graphData } = getTranformedTopologyData(MockResources, ['deployments']);
+    expect(graphData.edges).toHaveLength(1);
+    expect(graphData.edges[0].type).not.toEqual(TYPE_TRAFFIC_CONNECTOR);
+  });
+
+  it('should add a traffic connector when kiali data is passed through trafficData', () => {
+    const transformedData = transformTopologyData(
+      MockResources,
+      ['deployments'],
+      null,
+      null,
+      null,
+      null,
+      MockKialiGraphData,
+    );
+    expect(transformedData.graph.edges).toHaveLength(2);
+    expect(transformedData.graph.edges[0].type).toEqual(TYPE_TRAFFIC_CONNECTOR);
   });
 });
 

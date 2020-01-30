@@ -28,8 +28,9 @@ export const getAvailableClusterUpdates = (cv: ClusterVersionKind): ClusterUpdat
 };
 
 export const getAvailableClusterChannels = () => ({
-  'stable-4.3': 'stable-4.3',
-  'fast-4.3': 'fast-4.3',
+  'stable-4.4': 'stable-4.4',
+  'fast-4.4': 'fast-4.4',
+  'candidate-4.4': 'candidate-4.4',
 });
 
 export const getDesiredClusterVersion = (cv: ClusterVersionKind): string => {
@@ -161,9 +162,7 @@ Browser: ${window.navigator.userAgent}
   return _.isEmpty(prerelease)
     ? {
         label: 'Open Support Case',
-        href: `https://access.redhat.com/support/cases/#/case/new?product=OpenShift%20Container%20Platform&version=${major}.${minor}&clusterId=${
-          cv.spec.clusterID
-        }`,
+        href: `https://access.redhat.com/support/cases/#/case/new?product=OpenShift%20Container%20Platform&version=${major}.${minor}&clusterId=${cv.spec.clusterID}`,
       }
     : {
         label: 'Report Bug',

@@ -40,7 +40,6 @@ import {
   parseCPU,
   isWinToolsImage,
 } from '../../../../../selectors/vm';
-import { selectVM } from '../../../../../selectors/vm-template/selectors';
 import {
   getTemplateFlavors,
   getTemplateOperatingSystems,
@@ -62,6 +61,7 @@ import { DataVolumeWrapper } from '../../../../../k8s/wrapper/vm/data-volume-wra
 import { V1alpha1DataVolume } from '../../../../../types/vm/disk/V1alpha1DataVolume';
 import { joinIDs } from '../../../../../utils';
 import { VM_TEMPLATE_NAME_PARAMETER } from '../../../../../constants/vm-templates';
+import { selectVM } from '../../../../../selectors/vm-template/basic';
 
 export const prefillVmTemplateUpdater = ({ id, dispatch, getState }: UpdateOptions) => {
   const state = getState();
@@ -85,6 +85,8 @@ export const prefillVmTemplateUpdater = ({ id, dispatch, getState }: UpdateOptio
     [VMSettingsField.WORKLOAD_PROFILE]: { value: null },
     [VMSettingsField.PROVISION_SOURCE_TYPE]: { value: isProviderImport ? undefined : null },
     [VMSettingsField.HOSTNAME]: { value: null },
+    [VMSettingsField.CPU]: { value: null },
+    [VMSettingsField.MEMORY]: { value: null },
   };
 
   // filter out oldTemplates

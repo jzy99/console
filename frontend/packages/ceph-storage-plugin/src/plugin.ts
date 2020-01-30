@@ -1,26 +1,32 @@
 import * as _ from 'lodash';
+import * as models from './models';
+
 import {
+  ActionFeatureFlag,
+  ClusterServiceVersionAction,
   DashboardsCard,
-  DashboardsTab,
   DashboardsOverviewHealthPrometheusSubsystem,
-  ModelFeatureFlag,
+  DashboardsOverviewUtilizationItem,
+  DashboardsTab,
+  KebabActions,
   ModelDefinition,
+  ModelFeatureFlag,
   Plugin,
   RoutePage,
-  ClusterServiceVersionAction,
-  DashboardsOverviewUtilizationItem,
 } from '@console/plugin-sdk';
-import { GridPosition } from '@console/shared/src/components/dashboard/DashboardGrid';
-import { OverviewQuery } from '@console/internal/components/dashboard/dashboards-page/overview-dashboard/queries';
-import { ClusterServiceVersionModel } from '@console/operator-lifecycle-manager/src/models';
-import { referenceForModel } from '@console/internal/module/k8s';
-import * as models from './models';
 import {
   CAPACITY_USAGE_QUERIES,
-  StorageDashboardQuery,
   STORAGE_HEALTH_QUERIES,
+  StorageDashboardQuery,
 } from './constants/queries';
+import { OCS_INDEPENDENT_FLAG, detectIndependentMode } from './features';
+
+import { ClusterServiceVersionModel } from '@console/operator-lifecycle-manager/src/models';
+import { GridPosition } from '@console/shared/src/components/dashboard/DashboardGrid';
+import { OverviewQuery } from '@console/internal/components/dashboard/dashboards-page/cluster-dashboard/queries';
 import { getCephHealthState } from './components/dashboard-page/storage-dashboard/status-card/utils';
+import { getKebabActionsForKind } from './utils/kebab-actions';
+import { referenceForModel } from '@console/internal/module/k8s';
 
 type ConsumedExtensions =
   | ModelFeatureFlag
@@ -30,9 +36,12 @@ type ConsumedExtensions =
   | DashboardsOverviewHealthPrometheusSubsystem
   | DashboardsOverviewUtilizationItem
   | RoutePage
-  | ClusterServiceVersionAction;
+  | ActionFeatureFlag
+  | ClusterServiceVersionAction
+  | KebabActions;
 
 const CEPH_FLAG = 'CEPH';
+
 const apiObjectRef = referenceForModel(models.OCSServiceModel);
 
 const plugin: Plugin<ConsumedExtensions> = [
@@ -45,7 +54,7 @@ const plugin: Plugin<ConsumedExtensions> = [
   {
     type: 'FeatureFlag/Model',
     properties: {
-      model: models.CephClusterModel,
+      model: models.OCSServiceModel,
       flag: CEPH_FLAG,
     },
   },
@@ -53,8 +62,9 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'Dashboards/Tab',
     properties: {
       id: 'persistent-storage',
-      title: 'OCS PV',
+      title: 'Persistent Storage',
       required: CEPH_FLAG,
+      disallowed: OCS_INDEPENDENT_FLAG,
     },
   },
   {
@@ -63,9 +73,9 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: `/k8s/ns/:ns/${ClusterServiceVersionModel.plural}/:appName/${apiObjectRef}/~new`,
       loader: () =>
-        import(
-          './components/ocs-install/create-ocs-service' /* webpackChunkName: "ceph-ocs-service" */
-        ).then((m) => m.CreateOCSService),
+        import('./components/ocs-install/install-page' /* webpackChunkName: "install-page" */).then(
+          (m) => m.default,
+        ),
       required: CEPH_FLAG,
     },
   },
@@ -178,6 +188,103 @@ const plugin: Plugin<ConsumedExtensions> = [
             throw e;
           });
       },
+    },
+  },
+  // Independent mode dashboard
+  {
+    type: 'FeatureFlag/Action',
+    properties: {
+      flag: OCS_INDEPENDENT_FLAG,
+      detect: detectIndependentMode,
+    },
+  },
+  {
+    type: 'Dashboards/Tab',
+    properties: {
+      id: 'independent-dashboard',
+      title: 'Persistent Storage',
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  // Left Cards
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.LEFT,
+      loader: () =>
+        import(
+          './components/independent-dashboard-page/details-card/card' /* webpackChunkName: "indepedent-details-card" */
+        ).then((m) => m.default),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.LEFT,
+      loader: () =>
+        import(
+          './components/dashboard-page/storage-dashboard/inventory-card' /* webpackChunkName: "ceph-storage-inventory-card" */
+        ).then((m) => m.default),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  // Center
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.MAIN,
+      loader: () =>
+        import(
+          './components/independent-dashboard-page/status-card/card' /* webpackChunkName: "indepedent-status-card" */
+        ).then((m) => m.default),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.MAIN,
+      loader: () =>
+        import(
+          './components/dashboard-page/storage-dashboard/capacity-breakdown/capacity-breakdown-card' /* webpackChunkName: "ceph-storage-usage-breakdown-card" */
+        ).then((m) => m.default),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.MAIN,
+      loader: () =>
+        import(
+          './components/independent-dashboard-page/utilization-card/card' /* webpackChunkName: "utilization-card" */
+        ).then((m) => m.default),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  // Right
+  {
+    type: 'Dashboards/Card',
+    properties: {
+      tab: 'independent-dashboard',
+      position: GridPosition.RIGHT,
+      loader: () =>
+        import(
+          './components/dashboard-page/storage-dashboard/activity-card/activity-card' /* webpackChunkName: "ceph-storage-activity-card" */
+        ).then((m) => m.ActivityCard),
+      required: OCS_INDEPENDENT_FLAG,
+    },
+  },
+  {
+    type: 'KebabActions',
+    properties: {
+      getKebabActionsForKind,
     },
   },
 ];

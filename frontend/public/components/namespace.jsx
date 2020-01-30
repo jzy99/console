@@ -267,24 +267,23 @@ const projectTableHeader = ({ showMetrics, showActions }) => {
   ];
 };
 
-const ProjectLink = connect(
-  null,
-  { setActiveNamespace: UIActions.setActiveNamespace },
-)(({ project, setActiveNamespace }) => (
-  <span className="co-resource-item co-resource-item--truncate">
-    <ResourceIcon kind="Project" />
-    <Button
-      isInline
-      title={project.metadata.name}
-      type="button"
-      className="co-resource-item__resource-name"
-      onClick={() => setActiveNamespace(project.metadata.name)}
-      variant="link"
-    >
-      {project.metadata.name}
-    </Button>
-  </span>
-));
+const ProjectLink = connect(null, { setActiveNamespace: UIActions.setActiveNamespace })(
+  ({ project, setActiveNamespace }) => (
+    <span className="co-resource-item co-resource-item--truncate">
+      <ResourceIcon kind="Project" />
+      <Button
+        isInline
+        title={project.metadata.name}
+        type="button"
+        className="co-resource-item__resource-name"
+        onClick={() => setActiveNamespace(project.metadata.name)}
+        variant="link"
+      >
+        {project.metadata.name}
+      </Button>
+    </span>
+  ),
+);
 const projectHeaderWithoutActions = () =>
   projectTableHeader({ showMetrics: false, showActions: false });
 
@@ -362,54 +361,52 @@ export const ProjectsTable = (props) => (
 
 const headerWithMetrics = () => projectTableHeader({ showMetrics: true, showActions: true });
 const headerNoMetrics = () => projectTableHeader({ showMetrics: false, showActions: true });
-const ProjectList_ = connectToFlags(FLAGS.CAN_CREATE_PROJECT, FLAGS.CAN_GET_NS)(
-  ({ data, flags, setNamespaceMetrics, ...tableProps }) => {
-    const canGetNS = flags[FLAGS.CAN_GET_NS];
-    const showMetrics = PROMETHEUS_BASE_PATH && canGetNS && window.screen.width >= 1200;
-    /* eslint-disable react-hooks/exhaustive-deps */
-    React.useEffect(() => {
-      if (showMetrics) {
-        const updateMetrics = () => fetchNamespaceMetrics().then(setNamespaceMetrics);
-        updateMetrics();
-        const id = setInterval(updateMetrics, 30 * 1000);
-        return () => clearInterval(id);
-      }
-    }, [showMetrics]);
-    /* eslint-enable react-hooks/exhaustive-deps */
-
-    // Don't render the table until we know whether we can get metrics. It's
-    // not possible to change the table headers once the component is mounted.
-    if (flagPending(canGetNS)) {
-      return null;
+const ProjectList_ = connectToFlags(
+  FLAGS.CAN_CREATE_PROJECT,
+  FLAGS.CAN_GET_NS,
+)(({ data, flags, setNamespaceMetrics, ...tableProps }) => {
+  const canGetNS = flags[FLAGS.CAN_GET_NS];
+  const showMetrics = PROMETHEUS_BASE_PATH && canGetNS && window.screen.width >= 1200;
+  /* eslint-disable react-hooks/exhaustive-deps */
+  React.useEffect(() => {
+    if (showMetrics) {
+      const updateMetrics = () => fetchNamespaceMetrics().then(setNamespaceMetrics);
+      updateMetrics();
+      const id = setInterval(updateMetrics, 30 * 1000);
+      return () => clearInterval(id);
     }
+  }, [showMetrics]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
-    const ProjectEmptyMessage = () => (
-      <MsgBox
-        title="Welcome to OpenShift"
-        detail={<OpenShiftGettingStarted canCreateProject={flags[FLAGS.CAN_CREATE_PROJECT]} />}
-      />
-    );
-    const ProjectNotFoundMessage = () => <MsgBox title="No Projects Found" />;
-    return (
-      <Table
-        {...tableProps}
-        aria-label="Projects"
-        data={data}
-        Header={showMetrics ? headerWithMetrics : headerNoMetrics}
-        Row={Row}
-        EmptyMsg={data.length > 0 ? ProjectNotFoundMessage : ProjectEmptyMessage}
-        customData={{ showMetrics }}
-        virtualize
-      />
-    );
-  },
-);
-export const ProjectList = connect(
-  null,
-  (dispatch) => ({
-    setNamespaceMetrics: (metrics) => dispatch(UIActions.setNamespaceMetrics(metrics)),
-  }),
-)(connectToFlags(FLAGS.CAN_CREATE_PROJET, FLAGS.CAN_GET_NS)(ProjectList_));
+  // Don't render the table until we know whether we can get metrics. It's
+  // not possible to change the table headers once the component is mounted.
+  if (flagPending(canGetNS)) {
+    return null;
+  }
+
+  const ProjectEmptyMessage = () => (
+    <MsgBox
+      title="Welcome to OpenShift"
+      detail={<OpenShiftGettingStarted canCreateProject={flags[FLAGS.CAN_CREATE_PROJECT]} />}
+    />
+  );
+  const ProjectNotFoundMessage = () => <MsgBox title="No Projects Found" />;
+  return (
+    <Table
+      {...tableProps}
+      aria-label="Projects"
+      data={data}
+      Header={showMetrics ? headerWithMetrics : headerNoMetrics}
+      Row={Row}
+      EmptyMsg={data.length > 0 ? ProjectNotFoundMessage : ProjectEmptyMessage}
+      customData={{ showMetrics }}
+      virtualize
+    />
+  );
+});
+export const ProjectList = connect(null, (dispatch) => ({
+  setNamespaceMetrics: (metrics) => dispatch(UIActions.setNamespaceMetrics(metrics)),
+}))(connectToFlags(FLAGS.CAN_CREATE_PROJET, FLAGS.CAN_GET_NS)(ProjectList_));
 
 export const ProjectsPage = connectToFlags(FLAGS.CAN_CREATE_PROJECT)(({ flags, ...rest }) => (
   // Skip self-subject access review for projects since they use a special project request API.
@@ -454,12 +451,12 @@ export const PullSecret = (props) => {
   const modal = () =>
     configureNamespacePullSecretModal({ namespace: props.namespace, pullSecret: data });
 
-  return ((
+  return (
     <Button variant="link" type="button" isInline onClick={modal}>
       {_.get(data, 'metadata.name') || 'Not Configured'}
       <PencilAltIcon className="co-icon-space-l pf-c-button-icon--plain" />
     </Button>
-  ));
+  );
 };
 
 export const NamespaceLineCharts = ({ ns }) => (
@@ -478,9 +475,7 @@ export const NamespaceLineCharts = ({ ns }) => (
         humanize={humanizeBinaryBytes}
         byteDataType={ByteDataTypes.BinaryBytes}
         namespace={ns.metadata.name}
-        query={`sum by(namespace) (container_memory_working_set_bytes{namespace="${
-          ns.metadata.name
-        }",container="",pod!=""})`}
+        query={`sum by(namespace) (container_memory_working_set_bytes{namespace="${ns.metadata.name}",container="",pod!=""})`}
       />
     </div>
   </div>
@@ -490,9 +485,7 @@ export const TopPodsBarChart = ({ ns }) => (
   <Bar
     title="Memory Usage by Pod (Top 10)"
     namespace={ns.metadata.name}
-    query={`sort_desc(topk(10, sum by (pod)(container_memory_working_set_bytes{container="",pod!="",namespace="${
-      ns.metadata.name
-    }"})))`}
+    query={`sort_desc(topk(10, sum by (pod)(container_memory_working_set_bytes{container="",pod!="",namespace="${ns.metadata.name}"})))`}
     humanize={humanizeBinaryBytes}
     metric="pod"
   />
@@ -548,12 +541,12 @@ export const NamespaceSummary = ({ ns }) => {
   );
 };
 
-const Details_ = ({ obj: ns, consoleLinks }) => {
+const NamespaceDetails_ = ({ obj: ns, consoleLinks }) => {
   const links = getNamespaceDashboardConsoleLinks(ns, consoleLinks);
   return (
     <div>
       <div className="co-m-pane__body">
-        <SectionHeading text={`${ns.kind} Overview`} />
+        <SectionHeading text={`${ns.kind} Details`} />
         <NamespaceSummary ns={ns} />
       </div>
       {ns.kind === 'Namespace' && <ResourceUsage ns={ns} />}
@@ -579,7 +572,7 @@ const DetailsStateToProps = ({ UI }) => ({
   consoleLinks: UI.get('consoleLinks'),
 });
 
-const Details = connect(DetailsStateToProps)(Details_);
+const NamespaceDetails = connect(DetailsStateToProps)(NamespaceDetails_);
 
 const RolesPage = ({ obj: { metadata } }) => (
   <RoleBindingsPage
@@ -725,7 +718,11 @@ export const NamespacesDetailsPage = (props) => (
   <DetailsPage
     {...props}
     menuActions={nsMenuActions}
-    pages={[navFactory.details(Details), navFactory.editYaml(), navFactory.roles(RolesPage)]}
+    pages={[
+      navFactory.details(NamespaceDetails),
+      navFactory.editYaml(),
+      navFactory.roles(RolesPage),
+    ]}
   />
 );
 
@@ -736,13 +733,13 @@ export const ProjectsDetailsPage = (props) => (
     pages={[
       {
         href: '',
-        name: 'Dashboard',
+        name: 'Overview',
         component: ProjectDashboard,
       },
       {
-        href: 'overview',
-        name: 'Overview',
-        component: Details,
+        href: 'details',
+        name: 'Details',
+        component: NamespaceDetails,
       },
       navFactory.editYaml(),
       navFactory.workloads(Overview),

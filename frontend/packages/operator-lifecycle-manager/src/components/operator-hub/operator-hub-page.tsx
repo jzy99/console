@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as _ from 'lodash';
 import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
 import { match } from 'react-router';
 import {
   Firehose,
@@ -53,9 +54,7 @@ export const OperatorHubList: React.SFC<OperatorHubListProps> = (props) => {
         obj: pkg,
         kind: PackageManifestModel.kind,
         name: _.get(currentCSVDesc, 'displayName', pkg.metadata.name),
-        uid: `${pkg.metadata.name}-${pkg.status.catalogSource}-${
-          pkg.status.catalogSourceNamespace
-        }`,
+        uid: `${pkg.metadata.name}-${pkg.status.catalogSource}-${pkg.status.catalogSourceNamespace}`,
         installed: installedFor(subscription.data)(operatorGroup.data)(pkg.status.packageName)(
           namespace,
         ),
@@ -131,10 +130,14 @@ export const OperatorHubPage = withFallback(
           <PageHeading title="OperatorHub" />
           <p className="co-catalog-page__description">
             Discover Operators from the Kubernetes community and Red Hat partners, curated by Red
-            Hat. Operators can be installed on your clusters to provide optional add-ons and shared
-            services to your developers. Once installed, the capabilities provided by the Operator
-            appear in the <a href="/catalog">Developer Catalog</a>, providing a self-service
-            experience.
+            Hat. You can purchase commercial software through{' '}
+            <ExternalLink
+              href="https://marketplace.redhat.com/en-us?utm_source=openshift_console"
+              text="Red Hat Marketplace"
+            />
+            . You can install Operators on your clusters to provide optional add-ons and shared
+            services to your developers. After installation, the Operator capabilities will appear
+            in the <Link to="/catalog">Developer Catalog</Link> providing a self-service experience.
           </p>
           <div className="co-catalog__body">
             <Firehose
@@ -169,7 +172,7 @@ export const OperatorHubPage = withFallback(
               ]}
             >
               {/* FIXME(alecmerdler): Hack because `Firehose` injects props without TypeScript knowing about it */}
-              <OperatorHubList {...props as any} namespace={props.match.params.ns} />
+              <OperatorHubList {...(props as any)} namespace={props.match.params.ns} />
             </Firehose>
           </div>
         </div>

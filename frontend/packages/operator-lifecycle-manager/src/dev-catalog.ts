@@ -56,6 +56,9 @@ export const normalizeClusterServiceVersions = (
       kind: 'InstalledOperator',
       tileName: desc.displayName,
       tileIconClass: null,
+      capabilityLevel: _.get(desc, ['csv', 'metadata', 'annotations', 'capabilities'], '')
+        .toLowerCase()
+        .replace(/\s/g, ''),
       tileImgUrl: imgFor(desc),
       tileDescription: formatTileDescription(desc.description, desc.csv.spec.description),
       tileProvider: desc.csv.spec.provider.name,
@@ -65,9 +68,7 @@ export const normalizeClusterServiceVersions = (
         desc.csv.metadata.name
       }/${referenceForProvidedAPI(desc)}/~new`,
       supportUrl: null,
-      longDescription: `This resource is provided by ${
-        desc.csv.spec.displayName
-      }, a Kubernetes Operator enabled by the Operator Lifecycle Manager.`,
+      longDescription: `This resource is provided by ${desc.csv.spec.displayName}, a Kubernetes Operator enabled by the Operator Lifecycle Manager.`,
       documentationUrl: _.get(
         (desc.csv.spec.links || []).find(({ name }) => name === 'Documentation'),
         'url',

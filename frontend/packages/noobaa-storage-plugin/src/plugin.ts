@@ -55,6 +55,19 @@ const plugin: Plugin<ConsumedExtensions> = [
   {
     type: 'Page/Route',
     properties: {
+      path: `/k8s/ns/:ns/${ClusterServiceVersionModel.plural}/:appName/${referenceForModel(
+        models.NooBaaSystemModel,
+      )}/noobaa/`,
+      loader: () =>
+        import('./components/noobaa-operator/noobaa-page' /* webpackChunkName: "create-bc" */).then(
+          (m) => m.default,
+        ),
+      required: NOOBAA_FLAG,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
       exact: true,
       path: [
         `/k8s/ns/:ns/${ClusterServiceVersionModel.plural}/:appName/${referenceForModel(
@@ -80,7 +93,7 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'Dashboards/Tab',
     properties: {
       id: 'object-service',
-      title: 'OCS Object Service',
+      title: 'Object Service',
       required: NOOBAA_FLAG,
     },
   },
@@ -187,8 +200,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Object Buckets',
         resource: models.NooBaaObjectBucketModel.plural,
-        required: NOOBAA_FLAG,
       },
+    },
+    flags: {
+      required: [NOOBAA_FLAG],
     },
   },
   {
@@ -218,8 +233,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Object Bucket Claims',
         resource: models.NooBaaObjectBucketClaimModel.plural,
-        required: NOOBAA_FLAG,
       },
+    },
+    flags: {
+      required: [NOOBAA_FLAG],
     },
   },
   {

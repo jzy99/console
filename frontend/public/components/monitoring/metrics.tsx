@@ -209,10 +209,9 @@ const ToggleGraph_ = ({ hideGraphs, toggle }) => {
     </Button>
   );
 };
-export const ToggleGraph = connect(
-  graphStateToProps,
-  { toggle: UIActions.monitoringToggleGraphs },
-)(ToggleGraph_);
+export const ToggleGraph = connect(graphStateToProps, { toggle: UIActions.monitoringToggleGraphs })(
+  ToggleGraph_,
+);
 
 const MetricsDropdown_: React.FC<MetricsDropdownProps> = ({
   insertText,
@@ -285,13 +284,10 @@ const MetricsDropdown_: React.FC<MetricsDropdownProps> = ({
     />
   );
 };
-const MetricsDropdown: React.ComponentType<{ namespace?: string }> = connect(
-  null,
-  {
-    insertText: UIActions.queryBrowserInsertText,
-    setMetrics: UIActions.queryBrowserSetMetrics,
-  },
-)(MetricsDropdown_);
+const MetricsDropdown: React.ComponentType<{ namespace?: string }> = connect(null, {
+  insertText: UIActions.queryBrowserInsertText,
+  setMetrics: UIActions.queryBrowserSetMetrics,
+})(MetricsDropdown_);
 
 const ExpandButton = ({ isExpanded, onClick }) => {
   const title = `${isExpanded ? 'Hide' : 'Show'} Table`;
@@ -358,12 +354,9 @@ const SeriesButton_: React.FC<SeriesButtonProps> = ({
     </div>
   );
 };
-const SeriesButton = connect(
-  seriesButtonStateToProps,
-  (dispatch, { index, labels }) => ({
-    toggleSeries: () => dispatch(UIActions.queryBrowserToggleSeries(index, labels)),
-  }),
-)(SeriesButton_);
+const SeriesButton = connect(seriesButtonStateToProps, (dispatch, { index, labels }) => ({
+  toggleSeries: () => dispatch(UIActions.queryBrowserToggleSeries(index, labels)),
+}))(SeriesButton_);
 
 const queryInputStateToProps = ({ UI }: RootState, { index }) => ({
   metrics: UI.getIn(['queryBrowser', 'metrics']),
@@ -518,10 +511,7 @@ const queryInputDispatchToProps = (dispatch, props) =>
     queryDispatchToProps(dispatch, props),
   );
 
-const QueryInput = connect(
-  queryInputStateToProps,
-  queryInputDispatchToProps,
-)(QueryInput_);
+export const QueryInput = connect(queryInputStateToProps, queryInputDispatchToProps)(QueryInput_);
 
 const QueryKebab_: React.FC<QueryKebabProps> = ({
   deleteQuery,
@@ -569,12 +559,19 @@ const queryTableStateToProps = ({ UI }: RootState, { index }) => ({
   series: UI.getIn(['queryBrowser', 'queries', index, 'series']),
 });
 
-const paginationOptions = [10, 20, 50, 100, 200, 500].map((n) => ({
+const defaultPaginationOptions = [10, 20, 50, 100, 200, 500].map((n) => ({
   title: n.toString(),
   value: n,
 }));
 
-const TablePagination = ({ itemCount, page, perPage, setPage, setPerPage }) => {
+export const TablePagination = ({
+  itemCount,
+  page,
+  perPage,
+  setPage,
+  setPerPage,
+  paginationOptions = defaultPaginationOptions,
+}) => {
   const onPerPageSelect = (e, v) => {
     // When changing the number of results per page, keep the start row approximately the same
     const firstRow = (page - 1) * perPage;
@@ -779,10 +776,7 @@ const QueryTable_: React.FC<QueryTableProps> = ({
     </>
   );
 };
-const QueryTable = connect(
-  queryTableStateToProps,
-  queryDispatchToProps,
-)(QueryTable_);
+export const QueryTable = connect(queryTableStateToProps, queryDispatchToProps)(QueryTable_);
 
 const NamespaceAlert_: React.FC<{ dismiss: () => undefined; isDismissed: boolean }> = ({
   dismiss,
@@ -936,20 +930,16 @@ const AddQueryButton_ = ({ addQuery }) => (
     Add Query
   </Button>
 );
-const AddQueryButton = connect(
-  null,
-  { addQuery: UIActions.queryBrowserAddQuery },
-)(AddQueryButton_);
+const AddQueryButton = connect(null, { addQuery: UIActions.queryBrowserAddQuery })(AddQueryButton_);
 
 const RunQueriesButton_ = ({ runQueries }) => (
   <Button onClick={runQueries} type="submit" variant="primary">
     Run Queries
   </Button>
 );
-const RunQueriesButton = connect(
-  null,
-  { runQueries: UIActions.queryBrowserRunQueries },
-)(RunQueriesButton_);
+const RunQueriesButton = connect(null, { runQueries: UIActions.queryBrowserRunQueries })(
+  RunQueriesButton_,
+);
 
 const QueriesList_ = ({ count, namespace }) => (
   <>
@@ -1017,10 +1007,7 @@ const QueryBrowserPage_: React.FC<QueryBrowserPageProps> = ({ deleteAll, namespa
   );
 };
 export const QueryBrowserPage: React.ComponentType<{ namespace?: string }> = withFallback(
-  connect(
-    null,
-    { deleteAll: UIActions.queryBrowserDeleteAllQueries },
-  )(QueryBrowserPage_),
+  connect(null, { deleteAll: UIActions.queryBrowserDeleteAllQueries })(QueryBrowserPage_),
 );
 
 type MetricsActionsMenuProps = {

@@ -3,7 +3,7 @@ import * as _ from 'lodash-es';
 import { Link } from 'react-router-dom';
 import { sortable } from '@patternfly/react-table';
 import * as classNames from 'classnames';
-import { getMachineRole } from '@console/shared';
+import { getMachineAWSPlacement, getMachineRole } from '@console/shared';
 import { Tooltip, Button } from '@patternfly/react-core';
 
 import { PencilAltIcon } from '@patternfly/react-icons';
@@ -73,21 +73,18 @@ const menuActions = [
 ];
 const machineReference = referenceForModel(MachineModel);
 const machineSetReference = referenceForModel(MachineSetModel);
-export const getAWSPlacement = (machineSet: MachineSetKind | MachineDeploymentKind) =>
-  _.get(machineSet, 'spec.template.spec.providerSpec.value.placement') || {};
 
 // `spec.replicas` defaults to 1 if not specified. Make sure to differentiate between undefined and 0.
 export const getDesiredReplicas = (machineSet: MachineSetKind | MachineDeploymentKind) => {
-  const replicas = _.get(machineSet, 'spec.replicas');
-  return _.isNil(replicas) ? 1 : replicas;
+  return machineSet?.spec?.replicas ?? 1;
 };
 
 const getReplicas = (machineSet: MachineSetKind | MachineDeploymentKind) =>
-  _.get(machineSet, 'status.replicas', 0);
+  machineSet?.status?.replicas || 0;
 export const getReadyReplicas = (machineSet: MachineSetKind | MachineDeploymentKind) =>
-  _.get(machineSet, 'status.readyReplicas', 0);
+  machineSet?.status?.readyReplicas || 0;
 export const getAvailableReplicas = (machineSet: MachineSetKind | MachineDeploymentKind) =>
-  _.get(machineSet, 'status.availableReplicas', 0);
+  machineSet?.status?.availableReplicas || 0;
 
 const tableColumnClasses = [
   classNames('col-sm-4', 'col-xs-6'),
@@ -253,18 +250,18 @@ export const MachineTabPage: React.SFC<MachineTabPageProps> = ({
 
 const MachineSetDetails: React.SFC<MachineSetDetailsProps> = ({ obj }) => {
   const machineRole = getMachineRole(obj);
-  const { availabilityZone, region } = getAWSPlacement(obj);
+  const { availabilityZone, region } = getMachineAWSPlacement(obj);
   return (
     <>
       <div className="co-m-pane__body">
-        <SectionHeading text="Machine Set Overview" />
+        <SectionHeading text="Machine Set Details" />
         <MachineCounts resourceKind={MachineSetModel} resource={obj} />
         <ResourceSummary resource={obj}>
           <dt>Selector</dt>
           <dd>
             <Selector
               kind={machineReference}
-              selector={_.get(obj, 'spec.selector')}
+              selector={obj.spec?.selector}
               namespace={obj.metadata.namespace}
             />
           </dd>

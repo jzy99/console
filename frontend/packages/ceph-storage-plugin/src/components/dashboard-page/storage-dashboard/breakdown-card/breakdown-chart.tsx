@@ -27,7 +27,10 @@ const LinkableLegend: React.FC<LinkableLegendProps> = React.memo((props: Linkabl
       <ChartLabel
         {...props}
         lineHeight={1.2}
-        style={[{ ...datum.labels, fontSize: 9 }, { fill: 'black', fontSize: 8 }]}
+        style={[
+          { ...datum.labels, fontSize: 9 },
+          { fill: 'black', fontSize: 8 },
+        ]}
       />
     </Tooltip>
   );
@@ -61,7 +64,7 @@ export const BreakdownChart: React.FC<BreakdownChartProps> = ({
       key={d.id}
       style={{ data: { stroke: 'white', strokeWidth: 0.7, fill: d.fill } }}
       cornerRadius={getBarRadius(index, data.length)}
-      barWidth={18}
+      barWidth={12}
       padding={0}
       data={[d]}
       labelComponent={<ChartTooltip dx={0} style={{ fontSize: 8, padding: 5 }} />}

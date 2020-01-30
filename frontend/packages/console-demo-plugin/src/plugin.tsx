@@ -21,12 +21,13 @@ import {
   DashboardsOverviewUtilizationItem,
   DashboardsOverviewResourceActivity,
   DashboardsOverviewPrometheusActivity,
+  HorizontalNavTab,
 } from '@console/plugin-sdk';
 // TODO(vojtech): internal code needed by plugins should be moved to console-shared package
 import { PodModel, RouteModel, NodeModel } from '@console/internal/models';
 import { FLAGS } from '@console/shared';
 import { GridPosition } from '@console/shared/src/components/dashboard/DashboardGrid';
-import { OverviewQuery } from '@console/internal/components/dashboard/dashboards-page/overview-dashboard/queries';
+import { OverviewQuery } from '@console/internal/components/dashboard/dashboards-page/cluster-dashboard/queries';
 import { FooBarModel } from './models';
 import { yamlTemplates } from './yaml-templates';
 import TestIcon from './components/test-icon';
@@ -52,7 +53,8 @@ type ConsumedExtensions =
   | DashboardsInventoryItemGroup
   | DashboardsOverviewUtilizationItem
   | DashboardsOverviewResourceActivity
-  | DashboardsOverviewPrometheusActivity;
+  | DashboardsOverviewPrometheusActivity
+  | HorizontalNavTab;
 
 const plugin: Plugin<ConsumedExtensions> = [
   {
@@ -75,8 +77,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Test Href Link',
         href: '/test',
-        required: 'TEST_MODEL_FLAG',
       },
+    },
+    flags: {
+      required: ['TEST_MODEL_FLAG'],
     },
   },
   {
@@ -86,8 +90,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Test ResourceNS Link',
         resource: 'pods',
-        required: 'TEST_MODEL_FLAG',
       },
+    },
+    flags: {
+      required: ['TEST_MODEL_FLAG'],
     },
   },
   {
@@ -97,8 +103,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Test ResourceCluster Link',
         resource: 'projects',
-        required: [FLAGS.OPENSHIFT, 'TEST_MODEL_FLAG'],
       },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT, 'TEST_MODEL_FLAG'],
     },
   },
   {
@@ -269,6 +277,20 @@ const plugin: Plugin<ConsumedExtensions> = [
           (m) => m.DemoPrometheusActivity,
         ),
       required: 'TEST_MODEL_FLAG',
+    },
+  },
+  {
+    type: 'HorizontalNavTab',
+    properties: {
+      model: PodModel,
+      page: {
+        href: 'example',
+        name: 'Example',
+      },
+      loader: () =>
+        import('./components/test-pages' /* webpackChunkName: "demo" */).then(
+          (m) => m.DummyHorizontalNavTab,
+        ),
     },
   },
 ];

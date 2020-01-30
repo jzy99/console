@@ -54,13 +54,10 @@ const CommandLineTools: React.FC<CommandLineToolsProps> = ({ obj }) => {
         <h1 className="co-m-pane__heading">
           <div className="co-m-pane__name">{title}</div>
         </h1>
-        {(window as any).SERVER_FLAGS.requestTokenURL && (
+        {window.SERVER_FLAGS.requestTokenURL && (
           <>
             <hr />
-            <ExternalLink
-              href={(window as any).SERVER_FLAGS.requestTokenURL}
-              text="Copy Login Command"
-            />
+            <ExternalLink href={window.SERVER_FLAGS.requestTokenURL} text="Copy Login Command" />
           </>
         )}
         {additionalCommandLineTools}
@@ -83,7 +80,7 @@ export const CommandLineToolsPage = connectToFlags(FLAGS.CONSOLE_CLI_DOWNLOAD)(
 
     return (
       <Firehose resources={resources}>
-        <CommandLineTools {...props as any} />
+        <CommandLineTools {...(props as any)} />
       </Firehose>
     );
   },

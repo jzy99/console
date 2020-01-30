@@ -1,4 +1,4 @@
-import { K8sResourceKind, PodKind, RouteKind } from '@console/internal/module/k8s';
+import { K8sResourceKind, PodKind, RouteKind, EventKind } from '@console/internal/module/k8s';
 import { DEPLOYMENT_STRATEGY } from '../constants';
 import { OverviewItemAlerts, PodControllerOverviewItem } from './pod';
 
@@ -21,6 +21,8 @@ export type OverviewItem<T = K8sResourceKind> = {
   configurations?: K8sResourceKind[];
   ksservices?: K8sResourceKind[];
   revisions?: K8sResourceKind[];
+  events?: EventKind[];
+  isOperatorBackedService?: boolean;
 };
 
 export type DeploymentStrategy = DEPLOYMENT_STRATEGY.recreate | DEPLOYMENT_STRATEGY.rolling;

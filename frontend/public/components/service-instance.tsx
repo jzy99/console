@@ -38,9 +38,7 @@ import { ServiceBindingModel, ServiceInstanceModel, ClusterServiceClassModel } f
 
 const goToCreateBindingPage = (serviceInstance: K8sResourceKind) => {
   history.push(
-    `/k8s/ns/${serviceInstance.metadata.namespace}/serviceinstances/${
-      serviceInstance.metadata.name
-    }/create-binding`,
+    `/k8s/ns/${serviceInstance.metadata.namespace}/serviceinstances/${serviceInstance.metadata.name}/create-binding`,
   );
 };
 
@@ -164,7 +162,7 @@ const ServiceInstanceDetails: React.SFC<ServiceInstanceDetailsProps> = ({ obj: s
     <>
       <ServiceInstanceMessage obj={si} />
       <div className="co-m-pane__body">
-        <SectionHeading text="Service Instance Overview" />
+        <SectionHeading text="Service Instance Details" />
         <div className="row">
           <div className="col-sm-6">
             <ResourceSummary resource={si} />

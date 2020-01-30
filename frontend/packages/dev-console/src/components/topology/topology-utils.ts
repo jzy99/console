@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { EdgeModel, Model, NodeModel, NodeShape } from '@console/topology';
+import { EdgeModel, Model, NodeModel, NodeShape, createAggregateEdges } from '@console/topology';
 import {
   K8sResourceKind,
   modelFor,
@@ -30,6 +30,7 @@ import {
   createServiceBinding,
   removeServiceBinding,
   edgesFromServiceBinding,
+  getOperatorBackedServiceKindMap,
 } from '../../utils/application-utils';
 import { TopologyFilters } from './filters/filter-utils';
 import {
@@ -41,8 +42,20 @@ import {
   Group,
   TopologyOverviewItem,
   OperatorBackedServiceKindMap,
+  TrafficData,
+  KialiNode,
 } from './topology-types';
-import { TYPE_APPLICATION_GROUP, TYPE_KNATIVE_SERVICE } from './const';
+import {
+  TYPE_APPLICATION_GROUP,
+  TYPE_KNATIVE_SERVICE,
+  TYPE_HELM_RELEASE,
+  TYPE_HELM_WORKLOAD,
+  TYPE_AGGREGATE_EDGE,
+  TYPE_OPERATOR_BACKED_SERVICE,
+  TYPE_OPERATOR_WORKLOAD,
+  TYPE_TRAFFIC_CONNECTOR,
+  TYPE_WORKLOAD,
+} from './const';
 
 export const allowedResources = ['deployments', 'deploymentConfigs', 'daemonSets', 'statefulSets'];
 
@@ -51,6 +64,16 @@ export const getCheURL = (consoleLinks: K8sResourceKind[]) =>
 
 export const getEditURL = (gitURL: string, cheURL: string) => {
   return gitURL && cheURL ? `${cheURL}/f?url=${gitURL}&policies.create=peruser` : gitURL;
+};
+
+export const isHelmReleaseNode = (obj: K8sResourceKind): boolean => {
+  return obj?.metadata?.labels?.['heritage'] === 'Helm' || !!obj?.metadata?.labels?.['charts'];
+};
+
+export const getKialiLink = (consoleLinks: K8sResourceKind[], namespace: string): string => {
+  const kialiLink = _.find(consoleLinks, ['metadata.name', `kiali-namespace-${namespace}`])?.spec
+    ?.href;
+  return kialiLink || '';
 };
 
 /**
@@ -95,6 +118,16 @@ export const getRoutesUrl = (resource: OverviewItem): string => {
 };
 
 /**
+ * get monitoring status
+ */
+export const isEventWarning = (resource: OverviewItem): boolean => {
+  const { events } = resource;
+  if (!events) return false;
+  const eventStatus = _.filter(events, ['type', 'Warning']);
+  return !!eventStatus.length;
+};
+
+/**
  * create instance of TransformResourceData, return object containing all methods
  * @param resources
  * @param utils
@@ -121,6 +154,7 @@ export const createTopologyNodeData = (
   cheURL?: string,
   type?: string,
   filters?: TopologyFilters,
+  installedOperators?: K8sResourceKind[],
 ): TopologyDataObject => {
   const {
     obj: deploymentConfig,
@@ -135,7 +169,12 @@ export const createTopologyNodeData = (
   const deploymentsLabels = _.get(deploymentConfig, 'metadata.labels', {});
   const deploymentsAnnotations = _.get(deploymentConfig, 'metadata.annotations', {});
   const nodeResourceKind = _.get(deploymentConfig, 'metadata.ownerReferences[0].kind');
-  const operatorBackedService = nodeResourceKind in operatorBackedServiceKindMap;
+  const ownerUid = _.get(deploymentConfig, 'metadata.ownerReferences[0].uid');
+  const operatorResource: K8sResourceKind = _.find(installedOperators, {
+    metadata: { uid: ownerUid },
+  }) as K8sResourceKind;
+  const operatorBackedService =
+    !_.isEmpty(operatorResource) || nodeResourceKind in operatorBackedServiceKindMap;
 
   const csvIcon =
     operatorBackedService &&
@@ -146,13 +185,13 @@ export const createTopologyNodeData = (
   const defaultIcon = operatorBackedService
     ? getDefaultOperatorIcon()
     : getImageForIconClass(`icon-openshift`);
-
+  const nodeType = operatorBackedService ? TYPE_OPERATOR_WORKLOAD : TYPE_WORKLOAD;
   return {
     id: dcUID,
     name:
       _.get(deploymentConfig, 'metadata.name') || deploymentsLabels['app.kubernetes.io/instance'],
-    type: type || 'workload',
-    resources: { ...dc },
+    type: type || nodeType,
+    resources: { ...dc, isOperatorBackedService: operatorBackedService },
     pods: dc.pods,
     operatorBackedService,
     data: {
@@ -180,6 +219,7 @@ export const createTopologyNodeData = (
         dc: deploymentConfig,
       },
       showPodCount: filters && filters.display.podCount,
+      eventWarning: isEventWarning(dc),
     },
   };
 };
@@ -196,6 +236,14 @@ export const getTopologyNodeItem = (
   const uid = _.get(dc, ['metadata', 'uid']);
   const name = _.get(dc, ['metadata', 'name']);
   const label = _.get(dc, ['metadata', 'labels', 'app.openshift.io/instance']);
+  if (isHelmReleaseNode(dc)) {
+    return {
+      id: uid,
+      type: TYPE_HELM_WORKLOAD,
+      name: label || name,
+      ...(children && children.length && { children }),
+    };
+  }
   return {
     id: uid,
     type: type || 'workload',
@@ -278,12 +326,34 @@ export const getTopologyEdgeItems = (
   return edges;
 };
 
+export const getTopologyHelmReleaseGroupItem = (obj: K8sResourceKind, groups: Group[]): Group[] => {
+  const releaseLabel = _.get(obj, ['metadata', 'labels', 'release'], null);
+  const uid = _.get(obj, ['metadata', 'uid'], null);
+  if (!releaseLabel) return groups;
+  const releaseExists = _.some(groups, { name: releaseLabel });
+  if (!releaseExists) {
+    groups.push({
+      id: `${TYPE_HELM_RELEASE}:${releaseLabel}`,
+      type: TYPE_HELM_RELEASE,
+      name: releaseLabel,
+      nodes: [uid],
+    });
+  } else {
+    const gIndex = _.findIndex(groups, { name: releaseLabel });
+    groups[gIndex].nodes.push(uid);
+  }
+  return groups;
+};
+
 /**
  * create groups data for graph
  * @param dc
  * @param groups
  */
 export const getTopologyGroupItems = (dc: K8sResourceKind, groups: Group[]): Group[] => {
+  if (isHelmReleaseNode(dc)) {
+    return getTopologyHelmReleaseGroupItem(dc, groups);
+  }
   const labels = _.get(dc, ['metadata', 'labels']);
   const uid = _.get(dc, ['metadata', 'uid']);
   _.forEach(labels, (label, key) => {
@@ -297,15 +367,144 @@ export const getTopologyGroupItems = (dc: K8sResourceKind, groups: Group[]): Gro
     if (!groupExists) {
       groups.push({
         id: `group:${label}`,
+        type: TYPE_APPLICATION_GROUP,
         name: label,
         nodes: [uid],
       });
     } else {
       const gIndex = _.findIndex(groups, { name: label });
-      groups[gIndex].nodes.push(uid);
+      if (!groups[gIndex].nodes.includes(uid)) {
+        groups[gIndex].nodes.push(uid);
+      }
     }
   });
   return groups;
+};
+/**
+ * Creates the operator backed services topology data
+ * @param resources
+ * @param transformBy
+ * @param installedOperators
+ * @param operatorBackedServiceKindMap
+ * @param topologyGraphAndNodeData
+ */
+const getOperatoarBackedServiceData = (
+  resources: TopologyDataResources,
+  transformBy: string[],
+  installedOperators: K8sResourceKind[],
+  operatorBackedServiceKindMap: OperatorBackedServiceKindMap,
+  topologyGraphAndNodeData: TopologyDataModel,
+): TopologyDataModel => {
+  const obsGroups = {};
+  const operatorMap = {};
+  let obsNodeItems = [];
+  const obsTopology = {};
+  const {
+    graph: { nodes, edges, groups },
+    topology,
+  } = topologyGraphAndNodeData;
+  _.forEach(transformBy, (key) => {
+    if (!_.isEmpty(resources[key].data)) {
+      _.map(resources[key].data, (deployment) => {
+        const nodeResourceKind = _.get(deployment, 'metadata.ownerReferences[0].kind');
+        const ownerUid = _.get(deployment, 'metadata.ownerReferences[0].uid');
+        const appGroup = _.get(deployment, ['metadata', 'labels', 'app.kubernetes.io/part-of']);
+        let operator: K8sResourceKind = _.find(installedOperators, {
+          metadata: { uid: ownerUid },
+        }) as K8sResourceKind;
+
+        if (_.isEmpty(operator)) {
+          operator = operatorBackedServiceKindMap[nodeResourceKind];
+        }
+        if (operator) {
+          const operatorName = appGroup
+            ? `${appGroup}:${operator.metadata.name}`
+            : operator.metadata.name;
+          if (!(operatorName in obsGroups)) {
+            obsGroups[operatorName] = [];
+          }
+          operatorMap[operatorName] = _.merge({}, operator, {
+            metadata: {
+              uid: `${operatorName}:${operator.metadata.uid}`,
+            },
+          });
+          obsGroups[operatorName].push(deployment.metadata.uid);
+          if (appGroup) {
+            getTopologyGroupItems(
+              _.merge({}, deployment, {
+                metadata: {
+                  uid: `${operatorName}:${operator.metadata.uid}`,
+                },
+              }),
+              groups,
+            );
+          }
+        }
+      });
+    }
+  });
+
+  _.forIn(obsGroups, (children, grp) => {
+    obsNodeItems = [
+      ...obsNodeItems,
+      getTopologyNodeItem(operatorMap[grp], TYPE_OPERATOR_BACKED_SERVICE, children),
+    ];
+    obsTopology[operatorMap[grp].metadata.uid] = {
+      id: operatorMap[grp].metadata.uid,
+      name: operatorMap[grp].metadata.name,
+      type: TYPE_OPERATOR_BACKED_SERVICE,
+      resources: { obj: operatorMap[grp] },
+      operatorBackedService: true,
+      data: {
+        builderImage:
+          getImageForCSVIcon(_.get(operatorMap[grp], 'spec.icon.0')) || getDefaultOperatorIcon(),
+      },
+    };
+  });
+  return {
+    graph: {
+      nodes: [...nodes, ...obsNodeItems],
+      edges: [...edges],
+      groups: [...groups],
+    },
+    topology: { ...topology, ...obsTopology },
+  };
+};
+
+export const getFilteredTrafficWorkload = (nodes: KialiNode[]): KialiNode[] =>
+  nodes.filter(({ data }) => data.nodeType === TYPE_WORKLOAD);
+
+export const getTrafficConnectors = (
+  trafficData: TrafficData,
+  resources: K8sResourceKind[],
+): Edge[] => {
+  const filteredWorkload = getFilteredTrafficWorkload(trafficData.nodes);
+  return trafficData.edges.reduce((acc, { data }) => {
+    const { data: sourceTrafficNode } = filteredWorkload.find(
+      (wrkld) => wrkld.data.id === data.source,
+    );
+    const { data: targetTrafficNode } = filteredWorkload.find(
+      (wrkld) => wrkld.data.id === data.target,
+    );
+    const sourceResourceNode = resources.find((res) => {
+      return res.metadata.name === sourceTrafficNode[sourceTrafficNode.nodeType];
+    });
+    const targetResourceNode = resources.find(
+      (res) => res.metadata.name === targetTrafficNode[targetTrafficNode.nodeType],
+    );
+    return sourceResourceNode && targetResourceNode
+      ? [
+          ...acc,
+          {
+            id: `${sourceResourceNode.metadata.uid}_${targetResourceNode.metadata.uid}`,
+            type: TYPE_TRAFFIC_CONNECTOR,
+            source: sourceResourceNode.metadata.uid,
+            target: targetResourceNode.metadata.uid,
+            data: data.traffic,
+          },
+        ]
+      : acc;
+  }, []);
 };
 
 /**
@@ -323,25 +522,23 @@ export const transformTopologyData = (
   cheURL?: string,
   utils?: Function[],
   filters?: TopologyFilters,
+  trafficData?: TrafficData,
 ): TopologyDataModel => {
   const installedOperators = _.get(resources, 'clusterServiceVersions.data');
-  let operatorBackedServiceKindMap: OperatorBackedServiceKindMap;
+  const operatorBackedServiceKindMap = getOperatorBackedServiceKindMap(installedOperators);
   const serviceBindingRequests = _.get(resources, 'serviceBindingRequests.data');
-  if (installedOperators) {
-    operatorBackedServiceKindMap = installedOperators.reduce((kindMap, csv) => {
-      _.get(csv, 'spec.customresourcedefinitions.owned', []).forEach((crd) => {
-        if (!(crd.kind in kindMap)) {
-          kindMap[crd.kind] = csv;
-        }
-      });
-      return kindMap;
-    }, {});
-  }
 
   let topologyGraphAndNodeData: TopologyDataModel = {
     graph: { nodes: [], edges: [], groups: [] },
     topology: {},
   };
+  if (trafficData)
+    topologyGraphAndNodeData.graph.edges = getTrafficConnectors(trafficData, [
+      ...resources.deploymentConfigs.data,
+      ...resources.deployments.data,
+      ...resources.statefulSets.data,
+      ...resources.daemonSets.data,
+    ]);
 
   /**
    * form data model specific to knative resources
@@ -427,9 +624,12 @@ export const transformTopologyData = (
           cheURL,
           null,
           filters,
+          installedOperators,
         );
         if (!_.some(topologyGraphAndNodeData.graph.nodes, { id: uid })) {
-          nodesData = [...nodesData, getTopologyNodeItem(deploymentConfig)];
+          const operatorBacked = dataToShowOnNodes[uid].operatorBackedService;
+          const nodeType = operatorBacked ? TYPE_OPERATOR_WORKLOAD : TYPE_WORKLOAD;
+          nodesData = [...nodesData, getTopologyNodeItem(deploymentConfig, nodeType)];
           edgesData = [
             ...edgesData,
             ...getTopologyEdgeItems(
@@ -439,9 +639,11 @@ export const transformTopologyData = (
               application,
             ),
           ];
-          groupsData = [
-            ...getTopologyGroupItems(deploymentConfig, topologyGraphAndNodeData.graph.groups),
-          ];
+          if (!operatorBacked) {
+            groupsData = [
+              ...getTopologyGroupItems(deploymentConfig, topologyGraphAndNodeData.graph.groups),
+            ];
+          }
         }
       });
       const {
@@ -458,21 +660,45 @@ export const transformTopologyData = (
       };
     }
   });
+  topologyGraphAndNodeData = getOperatoarBackedServiceData(
+    resources,
+    transformBy,
+    installedOperators,
+    operatorBackedServiceKindMap,
+    topologyGraphAndNodeData,
+  );
   return topologyGraphAndNodeData;
 };
 
-export const topologyModelFromDataModel = (dataModel: TopologyDataModel): Model => {
+const dataObjectFromModel = (node: Node | Group): TopologyDataObject => {
+  return {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    resources: null,
+    operatorBackedService: false,
+    data: null,
+  };
+};
+
+export const topologyModelFromDataModel = (
+  dataModel: TopologyDataModel,
+  filters?: TopologyFilters,
+): Model => {
   const nodes: NodeModel[] = dataModel.graph.nodes.map((d) => {
-    if (d.type === TYPE_KNATIVE_SERVICE) {
+    if (d.type === TYPE_KNATIVE_SERVICE || d.type === TYPE_OPERATOR_BACKED_SERVICE) {
+      const data: TopologyDataObject = dataModel.topology[d.id] || dataObjectFromModel(d);
+      data.groupResources = d.children && d.children.map((id) => dataModel.topology[id]);
       return {
-        width: 104,
-        height: 104,
+        width: 300,
+        height: 100,
         id: d.id,
         type: d.type,
         label: dataModel.topology[d.id].name,
-        data: dataModel.topology[d.id],
-        children: (d as any).children,
-        group: true,
+        data,
+        collapsed: d.type === TYPE_KNATIVE_SERVICE && filters && !filters.display.knativeServices,
+        children: d.children,
+        group: d.children?.length > 0,
         shape: NodeShape.rect,
         style: {
           padding: [40, 50, 40, 40],
@@ -490,11 +716,19 @@ export const topologyModelFromDataModel = (dataModel: TopologyDataModel): Model 
   });
 
   const groupNodes: NodeModel[] = dataModel.graph.groups.map((d) => {
+    const data: TopologyDataObject = dataModel.topology[d.id] || dataObjectFromModel(d);
+    data.groupResources = d.nodes.map((id) => dataModel.topology[id]);
     return {
+      width: 300,
+      height: 180,
       id: d.id,
       group: true,
-      type: TYPE_APPLICATION_GROUP,
-      data: dataModel.topology[d.id],
+      type: d.type,
+      collapsed:
+        filters &&
+        ((d.type === TYPE_HELM_RELEASE && !filters.display.helmGrouping) ||
+          (d.type === TYPE_APPLICATION_GROUP && !filters.display.appGrouping)),
+      data,
       children: d.nodes,
       label: d.name,
       style: {
@@ -517,7 +751,7 @@ export const topologyModelFromDataModel = (dataModel: TopologyDataModel): Model 
   // create topology model
   const model: Model = {
     nodes: [...nodes, ...groupNodes],
-    edges,
+    edges: createAggregateEdges(TYPE_AGGREGATE_EDGE, edges, [...nodes, ...groupNodes]),
   };
 
   return model;
@@ -564,6 +798,19 @@ export const createTopologyResourceConnection = (
   const replaceTargetObj = replaceTarget && getTopologyResourceObject(replaceTarget);
 
   if (serviceBindingFlag && target.operatorBackedService) {
+    if (replaceTarget) {
+      return new Promise<K8sResourceKind[] | K8sResourceKind>((resolve, reject) => {
+        createServiceBinding(sourceObj, targetObj)
+          .then(() => {
+            // eslint-disable-next-line promise/no-nesting
+            removeResourceConnection(sourceObj, replaceTargetObj)
+              .then(resolve)
+              .catch(reject);
+          })
+          .catch(resolve);
+      });
+    }
+
     return createServiceBinding(sourceObj, targetObj);
   }
 

@@ -47,7 +47,10 @@ describe('Kubernetes resource CRUD operations', () => {
     .set('user.openshift.io~v1~Group', { kind: 'user.openshift.io~v1~Group', namespaced: false });
   const serviceCatalogObjs = OrderedMap<string, { kind: string; namespaced?: boolean }>().set(
     'clusterservicebrokers',
-    { kind: 'servicecatalog.k8s.io~v1beta1~ClusterServiceBroker', namespaced: false },
+    {
+      kind: 'servicecatalog.k8s.io~v1beta1~ClusterServiceBroker',
+      namespaced: false,
+    },
   );
   let testObjs = browser.params.openshift === 'true' ? k8sObjs.merge(openshiftObjs) : k8sObjs;
   testObjs =
@@ -134,10 +137,9 @@ describe('Kubernetes resource CRUD operations', () => {
         await browser.get(
           `${appHost}/search/${
             namespaced ? `ns/${testName}` : 'all-namespaces'
-          }?kind=${kind}&q=${testLabel}%3d${testName}`,
+          }?kind=${kind}&q=${testLabel}%3d${testName}&name=${name}`,
         );
         await crudView.resourceRowsPresent();
-        await crudView.filterForName(name);
         await crudView
           .rowForName(name)
           .element(by.linkText(name))
@@ -151,9 +153,8 @@ describe('Kubernetes resource CRUD operations', () => {
           await browser.get(
             `${appHost}/search/${
               namespaced ? `ns/${testName}` : 'all-namespaces'
-            }?kind=${kind}&q=${testLabel}%3d${testName}`,
+            }?kind=${kind}&q=${testLabel}%3d${testName}&name=${name}`,
           );
-          await crudView.filterForName(name);
           await crudView.resourceRowsPresent();
           await crudView.editRow(kind)(name);
         }
@@ -370,7 +371,7 @@ describe('Kubernetes resource CRUD operations', () => {
         until.urlContains(`/search/ns/${testName}?kind=core~v1~ConfigMap&q=${labelValue}`),
       );
 
-      expect($('.co-text-configmap').isDisplayed()).toBe(true);
+      expect($('.pf-c-chip__text').isDisplayed()).toBe(true);
     });
 
     afterAll(async () => {

@@ -146,7 +146,7 @@ const Details: React.FC<{ obj: CustomResourceDefinitionKind }> = ({ obj: crd }) 
   return (
     <>
       <div className="co-m-pane__body">
-        <SectionHeading text="Custom Resource Definition Overview" />
+        <SectionHeading text="Custom Resource Definition Details" />
         <div className="co-m-pane__body-group">
           <div className="row">
             <div className="col-sm-6">
@@ -211,9 +211,9 @@ export const CustomResourceDefinitionsPage: React.FC<CustomResourceDefinitionsPa
     canCreate={true}
   />
 );
-export const CustomResourceDefinitionsDetailsPage: React.FC<
-  CustomResourceDefinitionsDetailsPageProps
-> = (props) => (
+export const CustomResourceDefinitionsDetailsPage: React.FC<CustomResourceDefinitionsDetailsPageProps> = (
+  props,
+) => (
   <DetailsPage
     {...props}
     kind="CustomResourceDefinition"

@@ -1,21 +1,15 @@
 import { Dispatch } from 'react-redux';
 import * as _ from 'lodash-es';
 import { ActionType as Action, action } from 'typesafe-actions';
-import { getInfrastructurePlatform } from '@console/shared/src/selectors';
-import { FLAGS } from '@console/shared/src/constants';
-import {
-  GroupModel,
-  InfrastructureModel,
-  SelfSubjectAccessReviewModel,
-  UserModel,
-} from '../models';
-import { k8sBasePath, ClusterVersionKind, k8sCreate, k8sGet, K8sResourceKind } from '../module/k8s';
+import { FLAGS } from '@console/shared/src/constants/common';
+import { GroupModel, SelfSubjectAccessReviewModel, UserModel } from '../models';
+import { k8sBasePath, ClusterVersionKind, k8sCreate } from '../module/k8s';
 import { receivedResources } from './k8s';
 import { coFetchJSON } from '../co-fetch';
 import { MonitoringRoutes } from '../reducers/monitoring';
 import { setMonitoringURL } from './monitoring';
-import { setClusterID, setConsoleLinks, setCreateProjectMessage, setUser } from './ui';
 import * as plugins from '../plugins';
+import { setClusterID, setCreateProjectMessage, setUser, setConsoleLinks } from './common';
 
 export enum ActionType {
   SetFlag = 'setFlag',
@@ -26,7 +20,8 @@ export const defaults = _.mapValues(FLAGS, (flag) =>
   flag === FLAGS.AUTH_ENABLED ? !window.SERVER_FLAGS.authDisabled : undefined,
 );
 
-export const setFlag = (flag: FLAGS, value: boolean) => action(ActionType.SetFlag, { flag, value });
+export const setFlag = (flag: FLAGS | string, value: boolean) =>
+  action(ActionType.SetFlag, { flag, value });
 
 const retryFlagDetection = (dispatch, cb) => {
   setTimeout(() => cb(dispatch), 15000);
@@ -166,17 +161,6 @@ const detectOpenShift = (dispatch) =>
         : handleError(err, FLAGS.OPENSHIFT, dispatch, detectOpenShift),
   );
 
-const detectBaremetalPlatform = (dispatch) =>
-  k8sGet(InfrastructureModel, 'cluster').then(
-    (infra: K8sResourceKind) =>
-      dispatch(setFlag(FLAGS.BAREMETAL, getInfrastructurePlatform(infra) === 'BareMetal')),
-    (err) => {
-      _.get(err, 'response.status') === 404
-        ? dispatch(setFlag(FLAGS.BAREMETAL, false))
-        : handleError(err, FLAGS.BAREMETAL, dispatch, detectBaremetalPlatform);
-    },
-  );
-
 const clusterVersionPath = `${k8sBasePath}/apis/config.openshift.io/v1/clusterversions/version`;
 const detectClusterVersion = (dispatch) =>
   coFetchJSON(clusterVersionPath).then(
@@ -215,7 +199,7 @@ const detectMonitoringURLs = (dispatch) =>
     (res) => {
       const { alertmanagerURL, grafanaURL, prometheusURL } = res.data;
       if (!_.isEmpty(alertmanagerURL)) {
-        dispatch(setMonitoringURL(MonitoringRoutes.AlertManager, alertmanagerURL));
+        dispatch(setMonitoringURL(MonitoringRoutes.Alertmanager, alertmanagerURL));
       }
       if (!_.isEmpty(grafanaURL)) {
         dispatch(setMonitoringURL(MonitoringRoutes.Grafana, grafanaURL));
@@ -293,8 +277,6 @@ const ssarCheckActions = ssarChecks.map(({ flag, resourceAttributes, after }) =>
 export const detectFeatures = () => (dispatch: Dispatch) =>
   [
     detectOpenShift,
-    // TODO(vojtech): move this flag definition to metal3-plugin via ActionFeatureFlag extension
-    detectBaremetalPlatform,
     detectCanCreateProject,
     detectMonitoringURLs,
     detectClusterVersion,
@@ -302,5 +284,8 @@ export const detectFeatures = () => (dispatch: Dispatch) =>
     detectLoggingURL,
     detectConsoleLinks,
     ...ssarCheckActions,
-    ...plugins.registry.getActionFeatureFlags().map((ff) => ff.properties.detect),
+    ...plugins.registry
+      .getFeatureFlags()
+      .filter(plugins.isActionFeatureFlag)
+      .map((ff) => ff.properties.detect),
   ].forEach((detect) => detect(dispatch));

@@ -6,6 +6,7 @@ import {
   ChartArea,
   ChartAxis,
   ChartGroup,
+  ChartLegend,
   ChartLine,
   ChartStack,
   ChartThemeColor,
@@ -29,6 +30,10 @@ import { connect } from 'react-redux';
 
 import * as UIActions from '../../actions/ui';
 import { RootState } from '../../redux';
+import { PrometheusResponse } from '../graphs';
+import { GraphEmpty } from '../graphs/graph-empty';
+import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
+import { queryBrowserTheme } from '../graphs/themes';
 import {
   Dropdown,
   humanizeNumberSI,
@@ -44,10 +49,6 @@ import {
   twentyFourHourTimeWithSeconds,
 } from '../utils/datetime';
 import { withFallback } from '../utils/error-boundary';
-import { PrometheusResponse } from '../graphs';
-import { GraphEmpty } from '../graphs/graph-empty';
-import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
-import { queryBrowserTheme } from '../graphs/themes';
 
 // Prometheus internal labels start with "__"
 const isInternalLabel = (key: string): boolean => _.startsWith(key, '__');
@@ -69,13 +70,13 @@ const formatPositiveValue = (v: number): string =>
   v === 0 || (0.001 <= v && v < 1e23) ? humanizeNumberSI(v).string : v.toExponential(1);
 const formatValue = (v: number): string => (v < 0 ? '-' : '') + formatPositiveValue(Math.abs(v));
 
-export const Error = ({ error, title = 'An error occurred' }) => (
+export const Error: React.FC<ErrorProps> = ({ error, title = 'An error occurred' }) => (
   <Alert isInline className="co-alert" title={title} variant="danger">
     {_.get(error, 'json.error', error.message)}
   </Alert>
 );
 
-const GraphEmptyState = ({ children, title }) => (
+const GraphEmptyState: React.FC<GraphEmptyStateProps> = ({ children, title }) => (
   <div className="query-browser__wrapper graph-empty-state">
     <EmptyState variant={EmptyStateVariant.full}>
       <EmptyStateIcon size="sm" icon={ChartLineIcon} />
@@ -226,7 +227,7 @@ const graphContainer = (
 );
 
 const Graph: React.FC<GraphProps> = React.memo(
-  ({ allSeries, disabledSeries, isStack, span, xDomain }) => {
+  ({ allSeries, disabledSeries, formatLegendLabel, isStack, span, xDomain }) => {
     const [containerRef, width] = useRefWidth();
 
     // Remove any disabled series
@@ -242,8 +243,8 @@ const Graph: React.FC<GraphProps> = React.memo(
 
     if (!isStack) {
       // Set a reasonable Y-axis range based on the min and max values in the data
-      const findMin = (series) => _.minBy(series, 'y');
-      const findMax = (series) => _.maxBy(series, 'y');
+      const findMin = (series: GraphDataPoint[]) => _.minBy(series, 'y');
+      const findMax = (series: GraphDataPoint[]) => _.maxBy(series, 'y');
       let minY = _.get(findMin(_.map(data, findMin)), 'y', 0);
       let maxY = _.get(findMax(_.map(data, findMax)), 'y', 0);
       if (minY === 0 && maxY === 0) {
@@ -258,11 +259,17 @@ const Graph: React.FC<GraphProps> = React.memo(
       domain.y = [minY, maxY];
 
       if (Math.abs(maxY - minY) < 0.005) {
-        yTickFormat = (v) => (v === 0 ? '0' : v.toExponential(1));
+        yTickFormat = (v: number) => (v === 0 ? '0' : v.toExponential(1));
       }
     }
 
     const xTickFormat = span < 5 * 60 * 1000 ? twentyFourHourTimeWithSeconds : twentyFourHourTime;
+
+    const legendData = formatLegendLabel
+      ? _.flatMap(allSeries, (series, i) =>
+          _.map(series, (s) => ({ name: formatLegendLabel(s[0], i) })),
+        )
+      : undefined;
 
     return (
       <div ref={containerRef} style={{ width: '100%' }}>
@@ -291,6 +298,19 @@ const Graph: React.FC<GraphProps> = React.memo(
                 ))}
               </ChartGroup>
             )}
+            {legendData && (
+              <ChartLegend
+                data={legendData}
+                itemsPerRow={4}
+                orientation="vertical"
+                style={{
+                  labels: { fontSize: 11 },
+                }}
+                symbolSpacer={4}
+                x={0}
+                y={230}
+              />
+            )}
           </Chart>
         )}
       </div>
@@ -316,7 +336,7 @@ const formatSeriesValues = (
   const start = Number(_.get(newValues, '[0].x'));
   const end = Number(_.get(_.last(newValues), 'x'));
   const step = span / samples;
-  _.range(start, end, step).map((t, i) => {
+  _.range(start, end, step).forEach((t, i) => {
     const x = new Date(t);
     if (_.get(newValues, [i, 'x']) > x) {
       newValues.splice(i, 0, { x, y: null });
@@ -352,6 +372,7 @@ const minPollInterval = 10 * 1000;
 const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
   allSeries,
   disabledSeries,
+  formatLegendLabel,
   isStack,
   onZoom,
   span,
@@ -411,6 +432,7 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
       <Graph
         allSeries={allSeries}
         disabledSeries={disabledSeries}
+        formatLegendLabel={formatLegendLabel}
         isStack={isStack}
         span={span}
         xDomain={xDomain}
@@ -419,11 +441,18 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
   );
 };
 
+const Loading = () => (
+  <div className="query-browser__loading">
+    <LoadingInline />
+  </div>
+);
+
 const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   defaultSamples,
   defaultTimespan = parsePrometheusDuration('30m'),
   disabledSeries = [],
   filterLabels,
+  formatLegendLabel,
   GraphLink,
   hideControls,
   hideGraphs,
@@ -591,23 +620,21 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
         'graph-empty-state': _.isEmpty(graphData),
       })}
     >
-      <div className="query-browser__controls">
-        <div className="query-browser__controls--left">
-          {!hideControls && (
+      {hideControls ? (
+        <>{updating && <Loading />}</>
+      ) : (
+        <div className="query-browser__controls">
+          <div className="query-browser__controls--left">
             <SpanControls defaultSpanText={defaultSpanText} onChange={onSpanChange} span={span} />
-          )}
-          {updating && (
-            <div className="query-browser__loading">
-              <LoadingInline />
+            {updating && <Loading />}
+          </div>
+          {GraphLink && (
+            <div className="query-browser__controls--right">
+              <GraphLink />
             </div>
           )}
         </div>
-        {GraphLink && (
-          <div className="query-browser__controls--right">
-            <GraphLink />
-          </div>
-        )}
-      </div>
+      )}
       {error && <Error error={error} />}
       {_.isEmpty(graphData) && !updating && <GraphEmpty />}
       {!_.isEmpty(graphData) && (
@@ -624,6 +651,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
             <ZoomableGraph
               allSeries={graphData}
               disabledSeries={disabledSeries}
+              formatLegendLabel={formatLegendLabel}
               isStack={isStack}
               onZoom={onZoom}
               span={span}
@@ -636,10 +664,9 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   );
 };
 export const QueryBrowser = withFallback(
-  connect(
-    ({ UI }: RootState) => ({ hideGraphs: !!UI.getIn(['monitoring', 'hideGraphs']) }),
-    { patchQuery: UIActions.queryBrowserPatchQuery },
-  )(QueryBrowser_),
+  connect(({ UI }: RootState) => ({ hideGraphs: !!UI.getIn(['monitoring', 'hideGraphs']) }), {
+    patchQuery: UIActions.queryBrowserPatchQuery,
+  })(QueryBrowser_),
 );
 
 type AxisDomain = [number, number];
@@ -664,34 +691,51 @@ export type QueryObj = {
 
 type PrometheusValue = [number, string];
 
+export type FormatLegendLabel = (labels: Labels, i: number) => string;
+
+export type PatchQuery = (index: number, patch: QueryObj) => any;
+
+type ErrorProps = {
+  error: any;
+  title?: string;
+};
+
+type GraphEmptyStateProps = {
+  children: React.ReactNode;
+  title: string;
+};
+
 type GraphProps = {
-  allSeries: Series[];
+  allSeries: Series[][];
   disabledSeries?: Labels[][];
+  formatLegendLabel?: FormatLegendLabel;
   isStack?: boolean;
   span: number;
   xDomain?: AxisDomain;
 };
 
 type ZoomableGraphProps = {
-  allSeries: Series[];
+  allSeries: Series[][];
   disabledSeries?: Labels[][];
+  formatLegendLabel?: FormatLegendLabel;
   isStack?: boolean;
   onZoom: (from: number, to: number) => void;
   span: number;
   xDomain?: AxisDomain;
 };
 
-type QueryBrowserProps = {
+export type QueryBrowserProps = {
   defaultSamples?: number;
   defaultTimespan?: number;
   disabledSeries?: Labels[][];
   filterLabels?: Labels;
+  formatLegendLabel?: FormatLegendLabel;
   GraphLink?: React.ComponentType<{}>;
   hideControls?: boolean;
   hideGraphs: boolean;
   isStack?: boolean;
   namespace?: string;
-  patchQuery: (index: number, patch: QueryObj) => any;
+  patchQuery: PatchQuery;
   pollInterval?: number;
   queries: string[];
   timespan?: number;

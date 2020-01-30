@@ -23,11 +23,17 @@ export type DiskSourceConfig = {
 
 export type StorageResource = {
   name: string;
-  size?: string;
+  size: string;
   storageClass: string;
   interface: string;
   sourceConfig?: DiskSourceConfig;
   source?: DISK_SOURCE;
+};
+
+export type FlavorConfig = {
+  flavor: Flavor;
+  memory?: number;
+  cpu?: number;
 };
 
 export type CloudInitConfig = {
@@ -61,6 +67,28 @@ export type VMConfig = {
   storageResources: StorageResource[];
   networkResources: NetworkResource[];
   bootableDevice?: string;
+};
+
+export type InstanceConfig = {
+  instance?: string;
+  hostname?: string;
+  username?: string;
+  password?: string;
+  saveInstance?: boolean;
+};
+
+export type VMImportConfig = {
+  name: string;
+  provider: string;
+  instanceConfig: InstanceConfig;
+  sourceVMName: string;
+  description?: string;
+  operatingSystem?: OperatingSystem;
+  flavorConfig?: FlavorConfig;
+  workloadProfile?: WorkloadProfile;
+  storageResources?: StorageResource[];
+  networkResources?: NetworkResource[];
+  cloudInit?: CloudInitConfig;
 };
 
 export type BaseVMConfig = {

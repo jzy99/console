@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { connect } from 'react-redux';
 import { calculateRadius } from '@console/shared';
 import {
   Node,
@@ -9,14 +10,20 @@ import {
   WithDndDropProps,
   WithContextMenuProps,
 } from '@console/topology';
+import { RootState } from '@console/internal/redux';
 import { Tooltip, TooltipPosition } from '@patternfly/react-core';
 import { ExternalLinkAltIcon } from '@patternfly/react-icons';
+import { ALLOW_SERVICE_BINDING } from '../../../../const';
 import { routeDecoratorIcon } from '../../../import/render-utils';
 import Decorator from './Decorator';
 import PodSet from './PodSet';
-import KnativeIcon from './KnativeIcon';
 import BuildDecorator from './build-decorators/BuildDecorator';
+import ConnectedMonitoringDecorator from './MonitoringDecorator';
 import BaseNode from './BaseNode';
+
+interface StateProps {
+  serviceBinding: boolean;
+}
 
 export type WorkloadNodeProps = {
   element: Node;
@@ -31,25 +38,27 @@ export type WorkloadNodeProps = {
   WithDragNodeProps &
   WithDndDropProps &
   WithContextMenuProps &
-  WithCreateConnectorProps;
+  WithCreateConnectorProps &
+  StateProps;
 
 const WorkloadNode: React.FC<WorkloadNodeProps> = ({
   element,
   urlAnchorRef,
   canDrop,
   dropTarget,
+  serviceBinding,
   ...rest
 }) => {
   const { width, height } = element.getBounds();
   const workloadData = element.getData().data;
   const size = Math.min(width, height);
-  const { donutStatus, editUrl, cheEnabled } = workloadData;
+  const { donutStatus, editUrl, cheEnabled, eventWarning } = workloadData;
   const { radius, decoratorRadius } = calculateRadius(size);
   const cx = width / 2;
   const cy = height / 2;
   const repoIcon = routeDecoratorIcon(editUrl, decoratorRadius, cheEnabled);
   const tipContent = `Create a ${
-    element.getData().operatorBackedService ? 'binding' : 'visual'
+    serviceBinding && element.getData().operatorBackedService ? 'binding' : 'visual'
   } connector`;
 
   return (
@@ -96,6 +105,15 @@ const WorkloadNode: React.FC<WorkloadNodeProps> = ({
                 </Decorator>
               </Tooltip>
             ),
+            eventWarning && (
+              <ConnectedMonitoringDecorator
+                key="monitoring"
+                x={cx - radius + decoratorRadius * 0.7}
+                y={cy - radius + decoratorRadius * 0.7}
+                radius={decoratorRadius}
+                element={element}
+              />
+            ),
             <BuildDecorator
               key="build"
               workloadData={workloadData}
@@ -112,18 +130,18 @@ const WorkloadNode: React.FC<WorkloadNodeProps> = ({
             data={workloadData.donutStatus}
             showPodCount={workloadData.showPodCount}
           />
-          {workloadData.isKnativeResource && (
-            <KnativeIcon
-              x={cx - radius * 0.15}
-              y={cy - radius * 0.65}
-              width={radius * 0.39}
-              height={radius * 0.31}
-            />
-          )}
         </BaseNode>
       </Tooltip>
     </g>
   );
 };
 
-export default observer(WorkloadNode);
+const getServiceBindingStatus = ({ FLAGS }: RootState): boolean => FLAGS.get(ALLOW_SERVICE_BINDING);
+
+const mapStateToProps = (state: RootState): StateProps => {
+  return {
+    serviceBinding: getServiceBindingStatus(state),
+  };
+};
+
+export default connect(mapStateToProps)(observer(WorkloadNode));

@@ -202,9 +202,7 @@ const getImportErrors = (imageStream: K8sResourceKind): string[] => {
     );
     importErrorCondition &&
       acc.push(
-        `Unable to sync image for tag ${imageStream.metadata.name}:${tag.tag}. ${
-          importErrorCondition.message
-        }`,
+        `Unable to sync image for tag ${imageStream.metadata.name}:${tag.tag}. ${importErrorCondition.message}`,
       );
   });
 };
@@ -227,7 +225,7 @@ export const ImageStreamsDetails: React.SFC<ImageStreamsDetailsProps> = ({ obj: 
             ))}
           />
         )}
-        <SectionHeading text="Image Stream Overview" />
+        <SectionHeading text="Image Stream Details" />
         <ResourceSummary resource={imageStream}>
           {imageRepository && <dt>Image Repository</dt>}
           {imageRepository && <dd>{imageRepository}</dd>}

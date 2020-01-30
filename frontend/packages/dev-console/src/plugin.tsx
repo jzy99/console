@@ -12,6 +12,7 @@ import {
   ResourceDetailsPage,
   Perspective,
   RoutePage,
+  OverviewResourceTab,
   OverviewCRD,
   YAMLTemplate,
   OverviewTabSection,
@@ -58,6 +59,7 @@ type ConsumedExtensions =
   | RoutePage
   | ReduxReducer
   | KebabActions
+  | OverviewResourceTab
   | OverviewCRD
   | YAMLTemplate
   | OverviewTabSection;
@@ -101,9 +103,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Topology',
         href: '/topology',
-        required: FLAGS.OPENSHIFT,
         testID: 'topology-header',
       },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT],
     },
   },
   {
@@ -113,9 +117,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Builds',
         resource: 'buildconfigs',
-        required: FLAGS.OPENSHIFT,
         testID: 'build-header',
       },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT],
     },
   },
   {
@@ -125,9 +131,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: PipelineModel.labelPlural,
         resource: referenceForModel(PipelineModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
         testID: 'pipeline-header',
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -137,9 +145,25 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Monitoring',
         href: '/dev-monitoring',
-        required: FLAGS.OPENSHIFT,
         testID: 'monitoring-header',
       },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT],
+    },
+  },
+  {
+    type: 'NavItem/Href',
+    properties: {
+      perspective: 'dev',
+      componentProps: {
+        name: 'Helm Releases',
+        href: '/helm-releases',
+        testID: 'helm-releases-header',
+      },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT],
     },
   },
   {
@@ -150,9 +174,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: 'Project Details',
         resource: 'projects',
-        required: FLAGS.OPENSHIFT,
         testID: 'advanced-project-header',
       },
+    },
+    flags: {
+      required: [FLAGS.OPENSHIFT],
     },
   },
   {
@@ -164,19 +190,6 @@ const plugin: Plugin<ConsumedExtensions> = [
         name: 'Project Access',
         href: '/project-access',
         testID: 'advanced-project-access-header',
-      },
-    },
-  },
-  {
-    type: 'NavItem/Href',
-    properties: {
-      section: 'Advanced',
-      perspective: 'dev',
-      componentProps: {
-        name: 'Metrics',
-        href: '/metrics',
-        required: FLAGS.OPENSHIFT,
-        testID: 'metrics-header',
       },
     },
   },
@@ -220,8 +233,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: PipelineModel.labelPlural,
         resource: referenceForModel(PipelineModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -232,8 +247,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: PipelineRunModel.labelPlural,
         resource: referenceForModel(PipelineRunModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -244,8 +261,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: PipelineResourceModel.labelPlural,
         resource: referenceForModel(PipelineResourceModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -256,8 +275,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: TaskModel.labelPlural,
         resource: referenceForModel(TaskModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -268,8 +289,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: TaskRunModel.labelPlural,
         resource: referenceForModel(TaskRunModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -280,8 +303,10 @@ const plugin: Plugin<ConsumedExtensions> = [
       componentProps: {
         name: ClusterTaskModel.labelPlural,
         resource: referenceForModel(ClusterTaskModel),
-        required: FLAG_OPENSHIFT_PIPELINE,
       },
+    },
+    flags: {
+      required: [FLAG_OPENSHIFT_PIPELINE],
     },
   },
   {
@@ -295,13 +320,26 @@ const plugin: Plugin<ConsumedExtensions> = [
     },
   },
   {
+    type: 'Overview/Resource',
+    properties: {
+      name: 'Monitoring',
+      key: 'events',
+      loader: () =>
+        import(
+          './components/monitoring/overview/MonitoringTab' /* webpackChunkName: "monitoring-overview" */
+        ).then((m) => m.default),
+    },
+  },
+  {
     type: 'Page/Resource/Details',
     properties: {
       model: PipelineModel,
       loader: async () =>
-        (await import(
-          './components/pipelines/PipelineDetailsPage' /* webpackChunkName: "pipeline-details" */
-        )).default,
+        (
+          await import(
+            './components/pipelines/PipelineDetailsPage' /* webpackChunkName: "pipeline-details" */
+          )
+        ).default,
     },
   },
   {
@@ -309,9 +347,11 @@ const plugin: Plugin<ConsumedExtensions> = [
     properties: {
       model: PipelineRunModel,
       loader: async () =>
-        (await import(
-          './components/pipelineruns/PipelineRunDetailsPage' /* webpackChunkName: "pipelinerun-details" */
-        )).default,
+        (
+          await import(
+            './components/pipelineruns/PipelineRunDetailsPage' /* webpackChunkName: "pipelinerun-details" */
+          )
+        ).default,
     },
   },
   {
@@ -319,9 +359,11 @@ const plugin: Plugin<ConsumedExtensions> = [
     properties: {
       model: TaskRunModel,
       loader: async () =>
-        (await import(
-          './components/taskruns/TaskRunDetailsPage' /* webpackChunkName: "taskrun-details" */
-        )).default,
+        (
+          await import(
+            './components/taskruns/TaskRunDetailsPage' /* webpackChunkName: "taskrun-details" */
+          )
+        ).default,
     },
   },
   {
@@ -329,9 +371,11 @@ const plugin: Plugin<ConsumedExtensions> = [
     properties: {
       model: PipelineModel,
       loader: async () =>
-        (await import(
-          './components/pipelines/PipelinesResourceList' /* webpackChunkName: "pipeline-resource-list" */
-        )).default,
+        (
+          await import(
+            './components/pipelines/PipelinesResourceList' /* webpackChunkName: "pipeline-resource-list" */
+          )
+        ).default,
     },
   },
   {
@@ -339,9 +383,11 @@ const plugin: Plugin<ConsumedExtensions> = [
     properties: {
       model: PipelineRunModel,
       loader: async () =>
-        (await import(
-          './components/pipelineruns/PipelineRunsResourceList' /* webpackChunkName: "pipelinerun-resource-list" */
-        )).default,
+        (
+          await import(
+            './components/pipelineruns/PipelineRunsResourceList' /* webpackChunkName: "pipelinerun-resource-list" */
+          )
+        ).default,
     },
   },
   {
@@ -364,9 +410,10 @@ const plugin: Plugin<ConsumedExtensions> = [
         '/import',
         '/topology',
         '/deploy-image',
-        '/metrics',
         '/project-access',
         '/dev-monitoring',
+        '/edit',
+        '/helm-releases',
       ],
       component: NamespaceRedirect,
     },
@@ -391,9 +438,37 @@ const plugin: Plugin<ConsumedExtensions> = [
         '/topology/ns/:name/list',
       ],
       loader: async () =>
-        (await import(
-          './components/topology/TopologyPage' /* webpackChunkName: "dev-console-topology" */
-        )).default,
+        (
+          await import(
+            './components/topology/TopologyPage' /* webpackChunkName: "dev-console-topology" */
+          )
+        ).default,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      exact: true,
+      path: ['/catalog/helm-install'],
+      loader: async () =>
+        (
+          await import(
+            './components/helm/HelmInstallPage' /* webpackChunkName: "dev-console-helm-install" */
+          )
+        ).default,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      exact: true,
+      path: '/edit/ns/:ns',
+      loader: async () =>
+        (
+          await import(
+            './components/edit-application/EditApplicationPage' /* webpackChunkName: "dev-console-edit" */
+          )
+        ).default,
     },
   },
   {
@@ -402,9 +477,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/import/all-namespaces', '/import/ns/:ns'],
       loader: async () =>
-        (await import(
-          './components/import/ImportPage' /* webpackChunkName: "dev-console-import" */
-        )).default,
+        (
+          await import(
+            './components/import/ImportPage' /* webpackChunkName: "dev-console-import" */
+          )
+        ).default,
     },
   },
   {
@@ -413,9 +490,24 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/catalog/source-to-image'],
       loader: async () =>
-        (await import(
-          './components/import/ImportPage' /* webpackChunkName: "dev-console-import" */
-        )).default,
+        (
+          await import(
+            './components/import/ImportPage' /* webpackChunkName: "dev-console-import" */
+          )
+        ).default,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      path: ['/helm-releases/ns/:ns/release/:name'],
+      exact: false,
+      loader: async () =>
+        (
+          await import(
+            './components/helm/HelmReleaseDetails' /* webpackChunkName: "dev-console-helmReleaseDetails" */
+          )
+        ).default,
     },
   },
   {
@@ -425,9 +517,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/k8s/all-namespaces/buildconfigs', '/k8s/ns/:ns/buildconfigs'],
       loader: async () =>
-        (await import(
-          './components/BuildConfigPage' /* webpackChunkName: "dev-console-buildconfigs" */
-        )).default,
+        (
+          await import(
+            './components/BuildConfigPage' /* webpackChunkName: "dev-console-buildconfigs" */
+          )
+        ).default,
     },
   },
   {
@@ -440,9 +534,37 @@ const plugin: Plugin<ConsumedExtensions> = [
         `/k8s/ns/:ns/${referenceForModel(PipelineModel)}`,
       ],
       loader: async () =>
-        (await import(
-          './components/pipelines/PipelinesPage' /* webpackChunkName: "pipeline-page" */
-        )).PipelinesPage,
+        (
+          await import(
+            './components/pipelines/PipelinesPage' /* webpackChunkName: "pipeline-page" */
+          )
+        ).PipelinesPage,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      exact: true,
+      path: [`/k8s/ns/:ns/${referenceForModel(PipelineModel)}/~new/builder`],
+      loader: async () =>
+        (
+          await import(
+            './components/pipelines/pipeline-builder/PipelineBuilderPage' /* webpackChunkName: "pipeline-builder-page" */
+          )
+        ).default,
+    },
+  },
+  {
+    type: 'Page/Route',
+    properties: {
+      exact: true,
+      path: [`/k8s/ns/:ns/${referenceForModel(PipelineModel)}/:pipelineName/builder`],
+      loader: async () =>
+        (
+          await import(
+            './components/pipelines/pipeline-builder/PipelineBuilderEditPage' /* webpackChunkName: "pipeline-builder-edit-page" */
+          )
+        ).default,
     },
   },
   {
@@ -455,9 +577,11 @@ const plugin: Plugin<ConsumedExtensions> = [
         `/k8s/ns/:ns/${referenceForModel(PipelineRunModel)}`,
       ],
       loader: async () =>
-        (await import(
-          './components/pipelineruns/PipelineRunsPage' /* webpackChunkName: "pipelinerun-page" */
-        )).default,
+        (
+          await import(
+            './components/pipelineruns/PipelineRunsPage' /* webpackChunkName: "pipelinerun-page" */
+          )
+        ).default,
     },
   },
   {
@@ -466,9 +590,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/deploy-image/all-namespaces', '/deploy-image/ns/:ns'],
       loader: async () =>
-        (await import(
-          './components/import/DeployImagePage' /* webpackChunkName: "dev-console-deployImage" */
-        )).default,
+        (
+          await import(
+            './components/import/DeployImagePage' /* webpackChunkName: "dev-console-deployImage" */
+          )
+        ).default,
     },
   },
   {
@@ -478,9 +604,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/k8s/cluster/projects'],
       loader: async () =>
-        (await import(
-          './components/projects/details/AllProjectsDetailList' /* webpackChunkName: "all-projects-detail-list" */
-        )).default,
+        (
+          await import(
+            './components/projects/details/AllProjectsDetailList' /* webpackChunkName: "all-projects-detail-list" */
+          )
+        ).default,
     },
   },
   {
@@ -489,19 +617,24 @@ const plugin: Plugin<ConsumedExtensions> = [
       perspective: 'dev',
       path: ['/k8s/cluster/projects/:name'],
       loader: async () =>
-        (await import(
-          './components/projects/details/ProjectDetailsPage' /* webpackChunkName: "project-details" */
-        )).default,
+        (
+          await import(
+            './components/projects/details/ProjectDetailsPage' /* webpackChunkName: "project-details" */
+          )
+        ).default,
     },
   },
   {
     type: 'Page/Route',
     properties: {
       exact: true,
-      path: ['/metrics/all-namespaces', '/metrics/ns/:ns'],
+      path: ['/helm-releases/all-namespaces', '/helm-releases/ns/:ns'],
       loader: async () =>
-        (await import('./components/MetricsPage' /* webpackChunkName: "dev-console-metrics" */))
-          .default,
+        (
+          await import(
+            './components/helm/HelmReleasePage' /* webpackChunkName: "dev-console-helm-releases" */
+          )
+        ).default,
     },
   },
   {
@@ -510,9 +643,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: true,
       path: ['/project-access/all-namespaces', '/project-access/ns/:ns'],
       loader: async () =>
-        (await import(
-          './components/project-access/ProjectAccessPage' /* webpackChunkName: "dev-console-projectAccess" */
-        )).default,
+        (
+          await import(
+            './components/project-access/ProjectAccessPage' /* webpackChunkName: "dev-console-projectAccess" */
+          )
+        ).default,
     },
   },
   {
@@ -522,9 +657,11 @@ const plugin: Plugin<ConsumedExtensions> = [
       exact: false,
       path: ['/dev-monitoring/all-namespaces', '/dev-monitoring/ns/:ns'],
       loader: async () =>
-        (await import(
-          './components/monitoring/MonitoringPage' /* webpackChunkName: "dev-console-monitoring" */
-        )).default,
+        (
+          await import(
+            './components/monitoring/MonitoringPage' /* webpackChunkName: "dev-console-monitoring" */
+          )
+        ).default,
     },
   },
   {

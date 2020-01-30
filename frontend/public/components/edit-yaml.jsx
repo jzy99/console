@@ -83,7 +83,7 @@ const desktopGutter = 30;
  * This component loads the entire Monaco editor library with it.
  * Consider using `AsyncComponent` to dynamically load this component when needed.
  */
-/** @augments {React.Component<{obj?: any, create: boolean, kind: string, redirectURL?: string, resourceObjPath?: (obj: K8sResourceKind, objRef: string) => string}>} */
+/** @augments {React.Component<{obj?: any, create: boolean, kind: string, redirectURL?: string, resourceObjPath?: (obj: K8sResourceKind, objRef: string) => string}, onChange?: (yaml: string) => void>} */
 const EditYAML_ = connect(stateToProps)(
   class EditYAML extends React.Component {
     constructor(props) {
@@ -153,7 +153,7 @@ const EditYAML_ = connect(stateToProps)(
       window.removeEventListener('sidebar_toggle', this.resize);
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) {
       if (nextProps.isOver) {
         return;
       }
@@ -365,9 +365,7 @@ const EditYAML_ = connect(stateToProps)(
       const model = this.getModel(obj);
       if (!model) {
         this.handleError(
-          `The server doesn't have a resource type "kind: ${obj.kind}, apiVersion: ${
-            obj.apiVersion
-          }".`,
+          `The server doesn't have a resource type "kind: ${obj.kind}, apiVersion: ${obj.apiVersion}".`,
         );
         return;
       }
@@ -400,9 +398,7 @@ const EditYAML_ = connect(stateToProps)(
         }
         if (this.props.obj.kind !== obj.kind) {
           this.handleError(
-            `Cannot change resource kind (original: "${this.props.obj.kind}", updated: "${
-              obj.kind
-            }").`,
+            `Cannot change resource kind (original: "${this.props.obj.kind}", updated: "${obj.kind}").`,
           );
           return;
         }
@@ -691,7 +687,14 @@ const EditYAML_ = connect(stateToProps)(
         return <Loading />;
       }
 
-      const { connectDropTarget, isOver, canDrop, create, yamlSamplesList } = this.props;
+      const {
+        connectDropTarget,
+        isOver,
+        canDrop,
+        create,
+        yamlSamplesList,
+        onChange = () => null,
+      } = this.props;
       const klass = classNames('co-file-dropzone-container', {
         'co-file-dropzone--drop-over': isOver,
       });
@@ -794,7 +797,9 @@ const EditYAML_ = connect(stateToProps)(
                       value={yaml}
                       options={options}
                       editorDidMount={this.editorDidMount}
-                      onChange={(newValue) => this.setState({ yaml: newValue })}
+                      onChange={(newValue) =>
+                        this.setState({ yaml: newValue }, () => onChange(newValue))
+                      }
                     />
                     <div className="yaml-editor__buttons" ref={(r) => (this.buttons = r)}>
                       {customAlerts}

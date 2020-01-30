@@ -51,6 +51,7 @@ import {
   requirePrometheus,
 } from './graphs';
 import { VolumesTable } from './volumes-table';
+import { PodModel } from '../models';
 
 // Only request metrics if the device's screen width is larger than the
 // breakpoint where metrics are visible.
@@ -88,7 +89,10 @@ const fetchPodMetrics = (namespace: string): Promise<UIActions.PodMetrics> => {
   return Promise.all(promises).then((data: any[]) => _.assign({}, ...data));
 };
 
-export const menuActions = [...Kebab.factory.common];
+export const menuActions = [
+  ...Kebab.getExtensionsActionsForKind(PodModel),
+  ...Kebab.factory.common,
+];
 
 const tableColumnClasses = [
   '',
@@ -295,9 +299,7 @@ const PodGraphs = requirePrometheus(({ pod }) => (
           humanize={humanizeBinaryBytes}
           byteDataType={ByteDataTypes.BinaryBytes}
           namespace={pod.metadata.namespace}
-          query={`sum(container_memory_working_set_bytes{pod='${pod.metadata.name}',namespace='${
-            pod.metadata.namespace
-          }',container='',}) BY (pod, namespace)`}
+          query={`sum(container_memory_working_set_bytes{pod='${pod.metadata.name}',namespace='${pod.metadata.namespace}',container='',}) BY (pod, namespace)`}
         />
       </div>
       <div className="col-md-12 col-lg-4">
@@ -305,9 +307,7 @@ const PodGraphs = requirePrometheus(({ pod }) => (
           title="CPU Usage"
           humanize={humanizeCpuCores}
           namespace={pod.metadata.namespace}
-          query={`pod:container_cpu_usage:sum{pod='${pod.metadata.name}',namespace='${
-            pod.metadata.namespace
-          }'}`}
+          query={`pod:container_cpu_usage:sum{pod='${pod.metadata.name}',namespace='${pod.metadata.namespace}'}`}
         />
       </div>
       <div className="col-md-12 col-lg-4">
@@ -316,9 +316,7 @@ const PodGraphs = requirePrometheus(({ pod }) => (
           humanize={humanizeBinaryBytes}
           byteDataType={ByteDataTypes.BinaryBytes}
           namespace={pod.metadata.namespace}
-          query={`pod:container_fs_usage_bytes:sum{pod='${pod.metadata.name}',namespace='${
-            pod.metadata.namespace
-          }'}`}
+          query={`pod:container_fs_usage_bytes:sum{pod='${pod.metadata.name}',namespace='${pod.metadata.namespace}'}`}
         />
       </div>
     </div>
@@ -327,18 +325,14 @@ const PodGraphs = requirePrometheus(({ pod }) => (
         <Area
           title="Network In"
           humanize={humanizeDecimalBytesPerSec}
-          query={`sum(irate(container_network_receive_bytes_total{pod='${
-            pod.metadata.name
-          }', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
+          query={`sum(irate(container_network_receive_bytes_total{pod='${pod.metadata.name}', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
         />
       </div>
       <div className="col-md-12 col-lg-4">
         <Area
           title="Network Out"
           humanize={humanizeDecimalBytesPerSec}
-          query={`sum(irate(container_network_transmit_bytes_total{pod='${
-            pod.metadata.name
-          }', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
+          query={`sum(irate(container_network_transmit_bytes_total{pod='${pod.metadata.name}', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
         />
       </div>
     </div>
@@ -405,7 +399,7 @@ const Details: React.FC<PodDetailsProps> = ({ obj: pod }) => {
     <>
       <ScrollToTopOnMount />
       <div className="co-m-pane__body">
-        <SectionHeading text="Pod Overview" />
+        <SectionHeading text="Pod Details" />
         <PodGraphs pod={pod} />
         <div className="row">
           <div className="col-sm-6">
@@ -523,7 +517,17 @@ export const PodsPage = connect<{}, PodPagePropsFromDispatch, PodPageProps>(
   /* eslint-disable react-hooks/exhaustive-deps */
   React.useEffect(() => {
     if (showMetrics) {
-      const updateMetrics = () => fetchPodMetrics(namespace).then(setPodMetrics);
+      const updateMetrics = () =>
+        fetchPodMetrics(namespace)
+          .then(setPodMetrics)
+          .catch((e) => {
+            // Just log the error here. Showing a warning alert could be more annoying
+            // than helpful. It should be obvious there are no metrics in the list, and
+            // if monitoring is broken, it'll be really apparent since none of the
+            // graphs and dashboards will load in the UI.
+            // eslint-disable-next-line no-console
+            console.error('Unable to fetch pod metrics', e);
+          });
       updateMetrics();
       const id = setInterval(updateMetrics, 30 * 1000);
       return () => clearInterval(id);
