@@ -11,7 +11,7 @@ import {
 } from '../../models';
 import { getResource } from '../../utils';
 import {
-  VM_DETAIL_OVERVIEW_HREF,
+  VM_DETAIL_DETAILS_HREF,
   VM_DETAIL_DISKS_HREF,
   VM_DETAIL_NETWORKS_HREF,
   VM_DETAIL_CONSOLES_HREF,
@@ -37,15 +37,15 @@ export const VirtualMachinesInstanceDetailsPage: React.FC<VirtualMachinesInstanc
     { name: `${match.params.name} Details`, path: `${match.url}` },
   ];
 
-  const dashboardPage = {
+  const overviewPage = {
     href: '', // default landing page
-    name: 'Dashboard',
+    name: 'Overview',
     component: VMDashboard,
   };
 
-  const overviewPage = {
-    href: VM_DETAIL_OVERVIEW_HREF,
-    name: 'Overview',
+  const detailsPage = {
+    href: VM_DETAIL_DETAILS_HREF,
+    name: 'Details',
     component: VMDetailsFirehose,
   };
 
@@ -68,8 +68,8 @@ export const VirtualMachinesInstanceDetailsPage: React.FC<VirtualMachinesInstanc
   };
 
   const pages = [
-    dashboardPage,
     overviewPage,
+    detailsPage,
     navFactory.editYaml(),
     consolePage,
     navFactory.events(VMEvents),
