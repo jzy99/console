@@ -23,8 +23,9 @@ import {
   catalogItems,
   catalogCategories,
 } from '../../__mocks__/catalogItemsMocks';
-import { developerCatalogItems, groupedByType } from './catalog-data';
+import { developerCatalogItems, groupedByOperator } from './catalog-data';
 import { categorizeItems } from '../../public/components/utils/tile-view-page';
+import { Dropdown } from '../../public/components/utils';
 
 describe(CatalogTileViewPage.displayName, () => {
   let wrapper: ReactWrapper<CatalogListPageProps, CatalogListPageState>;
@@ -43,7 +44,7 @@ describe(CatalogTileViewPage.displayName, () => {
   it('renders category filter controls', () => {
     const filterItems = wrapper.find<any>(FilterSidePanelCategoryItem);
     expect(filterItems.exists()).toBe(true);
-    expect(filterItems.length).toEqual(10); // Filter by Types
+    expect(filterItems.length).toEqual(5); // Filter by Types
     expect(filterItems.at(0).props().count).toBe(0); // total count for Operator Backed
     expect(filterItems.at(0).props().checked).toBe(true); // Check operator backed filter is true by default
     expect(filterItems.at(1).props().count).toBe(0); // total count for Helm Charts
@@ -54,16 +55,6 @@ describe(CatalogTileViewPage.displayName, () => {
     expect(filterItems.at(3).props().checked).toBe(false); // filter imagestreams should be false by default
     expect(filterItems.at(4).props().count).toBe(11); // total count for clusterServiceClasses
     expect(filterItems.at(4).props().checked).toBe(false); // filter clusterServiceClasses should be false by default
-    expect(filterItems.at(5).props().count).toBe(0); // total count for Basic Install
-    expect(filterItems.at(5).props().checked).toBe(false); // Check Basic Install filter is false by default
-    expect(filterItems.at(6).props().count).toBe(0); // total count for Seamless Upgrades
-    expect(filterItems.at(6).props().checked).toBe(false); // Check Seamless Upgrades  filter is false by default
-    expect(filterItems.at(7).props().count).toBe(0); // total count for Full Lifecycle
-    expect(filterItems.at(7).props().checked).toBe(true); // Check filter Full Lifecycle should be true by default
-    expect(filterItems.at(8).props().count).toBe(0); // total count for Deep Insights
-    expect(filterItems.at(8).props().checked).toBe(true); // filter Deep Insights should be true by default
-    expect(filterItems.at(9).props().count).toBe(0); // total count for Auto Pilot
-    expect(filterItems.at(9).props().checked).toBe(true); // filter Auto Pilot should be true by default
   });
 
   it('renders tiles correctly', () => {
@@ -132,9 +123,15 @@ describe(CatalogTileViewPage.displayName, () => {
     });
   });
 
+  it('should render the group-by dropdown', () => {
+    expect(wrapper.find(Dropdown).exists()).toBe(true);
+    expect(wrapper.find(Dropdown).props().titlePrefix).toBe('Group By');
+    expect(wrapper.find(Dropdown).props().items).toEqual({ Operator: 'Operator', None: 'None' });
+  });
+
   it('should group catalog items by Operator', () => {
-    const groupedByTypeResult = groupItems(developerCatalogItems, 'Operator');
-    expect(groupedByTypeResult).toEqual(groupedByType);
+    const groupedByOperatorResult = groupItems(developerCatalogItems, 'Operator');
+    expect(groupedByOperatorResult).toEqual(groupedByOperator);
   });
 
   it('should not group the items when None is selected in the Group By Dropdown', () => {
