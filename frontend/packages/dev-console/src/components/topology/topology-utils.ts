@@ -693,7 +693,7 @@ export const topologyModelFromDataModel = (
       data.groupResources = d.children && d.children.map((id) => dataModel.topology[id]);
       return {
         width: 300,
-        height: 100,
+        height: d.type === TYPE_KNATIVE_SERVICE ? 100 : 180,
         id: d.id,
         type: d.type,
         label: dataModel.topology[d.id].name,
@@ -813,7 +813,7 @@ export const createTopologyResourceConnection = (
   serviceBindingFlag: boolean,
 ): Promise<K8sResourceKind[] | K8sResourceKind> => {
   if (!source || !target || source === target) {
-    return Promise.reject();
+    return Promise.reject(new Error('Can not create a connection from a node to itself.'));
   }
 
   const sourceObj = getTopologyResourceObject(source);
@@ -830,7 +830,7 @@ export const createTopologyResourceConnection = (
               .then(resolve)
               .catch(reject);
           })
-          .catch(resolve);
+          .catch(reject);
       });
     }
 
