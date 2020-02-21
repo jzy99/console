@@ -1,3 +1,4 @@
+import { ValidatedOptions } from '@patternfly/react-core';
 import { K8sResourceKind, ContainerPort } from '@console/internal/module/k8s';
 import { LazyLoader } from '@console/plugin-sdk';
 import { NameValuePair, NameValueFromPair } from '@console/shared';
@@ -29,6 +30,7 @@ export interface ImageStreamContextProps {
   dispatch: React.Dispatch<ImageStreamAction>;
   hasImageStreams: boolean;
   setHasImageStreams: (value: boolean) => void;
+  setValidated: (validated: ValidatedOptions) => void;
 }
 export interface SourceToImageFormProps {
   builderImages?: NormalizedBuilderImages;
@@ -133,7 +135,7 @@ export interface GitData {
   dir: string;
   showGitType: boolean;
   secret: string;
-  isUrlValidated: boolean;
+  urlValidation: ValidatedOptions;
   isUrlValidating: boolean;
 }
 
