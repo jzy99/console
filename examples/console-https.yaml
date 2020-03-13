@@ -1,0 +1,109 @@
+---
+#apiVersion: v1
+#data:
+#  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM5ekNDQWQrZ0F3SUJBZ0lKQU5xY2VXdXFSeHh0TUEwR0NTcUdTSWIzRFFFQkN3VUFNQkl4RURBT0JnTlYKQkFNTUIydDFZbVV0WTJFd0hoY05NVGt4TVRFMk1EVTBNREE0V2hjTk1qSXdPREV5TURVME1EQTRXakFTTVJBdwpEZ1lEVlFRRERBZHJkV0psTFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBCjBiYlY3WncySWRubmFISmhPUG4zcUw1aWRMcllvUEY2QWdXUHp3MDhTS0Noc1EzSG5OdTlNeWlMdVhxMk9XRngKYjJLeFU3MlNJRUVvZmdTZmE0V1dURFFoUFRwaHVINWRMTFBOanYrRUV4aTl0OUpJS1daK3JPb2d0eUc0V0lWWgpWb2dKQ1NSQzJTQzd0eDZpcFhKNlRtUnpRQ0Jub1BoZXJndVEwb3h4VHdQeDQvdXZ2Mlkvcks1SlkvVFlrYjRxCloyUGFIcUpPVWJ3a2JwRVNNUVlPT1AvdXdobVRZZ2NtV01ZNVRvZFFDR1N3amIycFFmKzhtOWRzWmFQMWZOckEKZHNGUFdtbTRMUWs2VEk2WVBXbmQ0SERvZmIrSzEzMjBMT2FxLzAwM21mMVpjaktTYytpckhHdU5oMTl6YVJtUwpKV0p0WE55LzRGTXU4aVFoS1J3QzF3SURBUUFCbzFBd1RqQWRCZ05WSFE0RUZnUVU0czdkcDlvemdVUENuQVM1CklLR3lua2xOc3Bnd0h3WURWUjBqQkJnd0ZvQVU0czdkcDlvemdVUENuQVM1SUtHeW5rbE5zcGd3REFZRFZSMFQKQkFVd0F3RUIvekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBbUJGMW1FVFRZU3RkOHErKytLZW5vR3NGRjRGegpuMnVjY0ZKR2t4QkhUNy9Ua1RIWDM4VnhlSVJXVnV5a0x1WDNxblVwZUJ4NHFoc0U0cjYyRGtiUU9CdHdQUHhXCnAyTkNZRGozZk15emo1V0hVc3BOcFpkQk1xemZrcU1tSXBPc0dvSzhwWjRIbnFwNWcwOXptMWVYSVRnZzV0cTQKYmltQlR2b3BHKzQ3L1Y4OHgzb2Q4TmpDbFVyMnBvY1U1UkJ3VTBRaUVyeVlTRWowZ0Z0Myt3UjNieVdFUm1LagpMQkJFOWcreW1WOWZuSVNaMU9nU1JmQ2Q3Ynk1SmVuOFdjSTAyWjBZc2VkU3o4aUlvZjlrVUVMcjVLN2QrQWc2CmIxWTI0Mml1NTV0aVNCQjlka24xbUxrdTgwQmV0MDZUMVQvaVVCRCt2NG42QzgwaEs2KzdKWFVQL2c9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+#  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBMGJiVjdadzJJZG5uYUhKaE9QbjNxTDVpZExyWW9QRjZBZ1dQencwOFNLQ2hzUTNICm5OdTlNeWlMdVhxMk9XRnhiMkt4VTcyU0lFRW9mZ1NmYTRXV1REUWhQVHBodUg1ZExMUE5qditFRXhpOXQ5SkkKS1daK3JPb2d0eUc0V0lWWlZvZ0pDU1JDMlNDN3R4NmlwWEo2VG1SelFDQm5vUGhlcmd1UTBveHhUd1B4NC91dgp2Mlkvcks1SlkvVFlrYjRxWjJQYUhxSk9VYndrYnBFU01RWU9PUC91d2htVFlnY21XTVk1VG9kUUNHU3dqYjJwClFmKzhtOWRzWmFQMWZOckFkc0ZQV21tNExRazZUSTZZUFduZDRIRG9mYitLMTMyMExPYXEvMDAzbWYxWmNqS1MKYytpckhHdU5oMTl6YVJtU0pXSnRYTnkvNEZNdThpUWhLUndDMXdJREFRQUJBb0lCQUNCUndSNWhXS1pXNHFiaQpHY0dpSkZ6SkdudEs0Ri9OVnpSQWp5MGxxUWk0V0xMa29NSzN5cXk3cnV6aTBIcC9YZkFBa2J1S0Y1OEk2NmlnCkpjRjRVUFZsZzBuZ1dYY0pZbXFsT3lTeWxEUXROKy9BWklhYzJTRGs1QzNVOElnVDVQVEUraitDYXhyelJIcXcKS2ZpOWI4UHREeVh1MkltaVBWVXRTeUJuckg2MG9ZTE85WGowbXNmU1RDYW92Z0Fsd25qU1hHRFFQYWZ6Z29MRwo3T2ltWmNFKzJxM0o5NzlLUmR6WE90VER4UERTTGxJZkg1UHNPWWxUTXk3ZUVZN1JlZDJBcEJ6VkhPbmFJWHZaCkVyOFVXMEdHc1ZIM2ttUDI5M2ZET2hpOFRIUGR1MjE4WlB2ejhBcjRKYW9IUDJ0ME9kS3REcC9pWXdYK0dZVGQKV1kwZFhLRUNnWUVBNmlDdnBHTGkxMHh4UWRybERpR3ZuUW14UkVuWE1rdHdHd1F5aDMzeGNYUlBaL0IzdGV5MwpLNHoyeDdUbmtIcy8veEpXZXFySHlLZHF6OUNJSlo4TE04SnFSWlVvQTZ1dGlYL0VnZFRaMnhWZzJoMkpLYlhECk9TM0VDbUNhalNVYWh4eE5LRFBZeWtKN1BWU05veGFWcEFMV3VVTWZ0N1F5V1hIY1NjcGRhclVDZ1lFQTVVNUoKR05rUWNVbUFKZE5hNXJPdi9uS1A0WHg0YXN2NGJxUnRXaVYyTDYrVjl5TnZQQVVHMmQ0OEkxU0RudjNPTzQveQpwWEIrZXhBdmRvS2Y2RWNzNkxBRXEvTjFLajJvRFJ6UjFCa1pPb0lENjBlTmovdmdnNzkvY3pNcSt5Zmc2Y2FLCmFMaDhRcDJCL1RXaW9ldWVEak5uZWNlWENqRERlRUNKbEdTTkV0c0NnWUJkMmhKdWhCRkltdVQvc0I2SHhxc2QKK1VldEJ5aVRpYmY3ckhnUTVrU0Y1VWo3Y21LYWM3U05hYWwzTHFad3ZXZE8rV3ZmS2x5QnE5TGVVVXB5UWtuOApTcC9OR3RoNmVEUk5YUUZKeGlnNmNWeHNzdEJML3dldUFSR0gwMmZBMHJIS25XYTBpZXdLVUJJVTZMTUtRRUJtCkNabEhsSWUvWFNXZHcwMjU2cnY5elFLQmdEZXRkNUJCL0gwVmRMazZoYUxvMUgzN0FUYW1DM01iRGJxSDBFbUkKT1JkQkVpL00rZEJnQkJiWW9FK1AwTm5GRk5OZmszSmFTMHZFVlZINFM2MlJ3clRKTUlrejl5b0hpSXVPaU9CdwpLN0VLS3J0eFIwMUR3bk1iQjI1SWFWSk1qNDhUOXoyUU5oUFN2T0pucUpLYWJHbFVUL2JBNE1ySHBsN0hoT0IwClBkRHJBb0dBZHZWL3UyVHpOZjdwSWdvN0ttT1ZKTVA0MiswTlkrOXg5MW95NVd3cnlyU1RSbFRZdjRXVXJLMEIKSFcrMTNTUXdJQ0Y1RVF0Q09nNlJXeGJ2a04yTUVFakduS3JhRUZkVThsZGZ4aHM3elVEUEszWmZmU1d1Y0V2VAp3YlN6KzFxSXVKdlZLMFFYWjlNa0ZWRlRrck1odkZGb0JsQ1hvYXNUNG1RTzQ4K1lFOFk9Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+#kind: Secret
+#metadata:
+#  name: console-ca
+#  namespace: kube-system
+#type: kubernetes.io/tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: console
+  name: console
+  namespace: kube-system
+spec:
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: console
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: console
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_ssl_verify off;
+spec:
+  tls:
+  - hosts:
+    - console.ist2.io
+    secretName: con-tls
+  rules:
+  - host: console.ist2.io
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: console
+            servicePort: 9000
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console
+  namespace: kube-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: console
+  template:
+    metadata:
+      labels:
+        app: console
+    spec:
+      containers:
+        - name: console
+          image: "hub.paas.kjtyun.com/openshift/console:latest"
+          command:
+            - "/opt/bridge/bin/bridge"
+          args:
+            - "--base-address=https://console.ist2.io"
+            - "--ca-file=/certs/ca.crt"
+            - "--k8s-auth=oidc"
+            - "--k8s-mode=off-cluster"
+            - "--k8s-mode-off-cluster-endpoint=https://10.79.1.105:6443"
+            - "--k8s-mode-off-cluster-skip-verify-tls=true"
+            - "--listen=https://0.0.0.0:9000"
+            - "--tls-cert-file=/certs/cert.crt"
+            - "--tls-key-file=/certs/key.pem"
+            - "--public-dir=/opt/bridge/static"
+            - "--user-auth=oidc"
+            - "--user-auth-oidc-client-id=login"
+            - "--user-auth-oidc-issuer-url=https://auth.ist2.io/dex"
+            - "--user-auth-oidc-client-secret=4TORGiNV9M54BTk1v7dNuFSaI6hUjfjr"
+            - "--user-auth-oidc-ca-file=/certs/ca.crt"
+            - "--k8s-mode-off-cluster-prometheus=http://pm.ist2.io"
+            - "--k8s-mode-off-cluster-alertmanager=http://am.ist2.io"
+            - "--k8s-mode-off-cluster-thanos=http://pm.ist2.io"
+          ports:
+            - containerPort: 9000
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /certs
+              name: https-tls
+      volumes:
+        - name: https-tls
+          secret:
+            defaultMode: 420
+            secretName: con-cert
