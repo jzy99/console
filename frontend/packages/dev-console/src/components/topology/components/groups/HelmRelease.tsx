@@ -1,8 +1,14 @@
 import * as React from 'react';
-import { connect } from 'react-redux';
-import { Node, observer, WithSelectionProps } from '@console/topology';
-import { RootState } from '@console/internal/redux';
-import { getTopologyFilters, TopologyFilters } from '../../filters/filter-utils';
+import {
+  Node,
+  observer,
+  WithSelectionProps,
+  WithDndDropProps,
+  WithContextMenuProps,
+} from '@console/topology';
+import { modelFor, referenceFor } from '@console/internal/module/k8s';
+import { useAccessReview } from '@console/internal/components/utils';
+import { getTopologyResourceObject } from '../../topology-utils';
 import HelmReleaseNode from './HelmReleaseNode';
 import HelmReleaseGroup from './HelmReleaseGroup';
 
@@ -10,23 +16,25 @@ import './HelmRelease.scss';
 
 export type HelmReleaseProps = {
   element: Node;
-  filters: TopologyFilters;
-} & WithSelectionProps;
+} & WithSelectionProps &
+  WithContextMenuProps &
+  WithDndDropProps;
 
 const HelmRelease: React.FC<HelmReleaseProps> = (props) => {
-  if (
-    props.element.isCollapsed() ||
-    !props.element.getData().groupResources ||
-    !props.element.getData().groupResources.length
-  ) {
-    return <HelmReleaseNode {...props} />;
+  const secretObj = getTopologyResourceObject(props.element.getData().resources.obj);
+  const resourceModel = secretObj ? modelFor(referenceFor(secretObj)) : null;
+  const editAccess = useAccessReview({
+    group: resourceModel?.apiGroup,
+    verb: 'patch',
+    resource: resourceModel?.plural,
+    name: secretObj?.metadata.name,
+    namespace: secretObj?.metadata.namespace,
+  });
+  if (props.element.isCollapsed()) {
+    return <HelmReleaseNode editAccess={editAccess} {...props} />;
   }
 
-  return <HelmReleaseGroup {...props} />;
+  return <HelmReleaseGroup editAccess={editAccess} {...props} />;
 };
 
-const HelmReleaseState = (state: RootState) => ({
-  filters: getTopologyFilters(state),
-});
-
-export default connect(HelmReleaseState)(observer(HelmRelease));
+export default observer(HelmRelease);

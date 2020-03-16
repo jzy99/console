@@ -7,48 +7,78 @@ import {
   createSvgIdUrl,
   useDragNode,
   WithSelectionProps,
+  WithDndDropProps,
+  WithContextMenuProps,
   observer,
   useCombineRefs,
 } from '@console/topology';
 import NodeShadows, { NODE_SHADOW_FILTER_ID_HOVER, NODE_SHADOW_FILTER_ID } from '../NodeShadows';
 import SvgBoxedText from '../../../svg/SvgBoxedText';
 import useSearchFilter from '../../filters/useSearchFilter';
+import { nodeDragSourceSpec } from '../../componentUtils';
+import { TYPE_HELM_RELEASE } from '../../const';
 
 export type HelmReleaseGroupProps = {
   element: Node;
-} & WithSelectionProps;
+  editAccess: boolean;
+} & WithSelectionProps &
+  WithContextMenuProps &
+  WithDndDropProps;
 
-const HelmReleaseGroup: React.FC<HelmReleaseGroupProps> = ({ element, onSelect, selected }) => {
+const HelmReleaseGroup: React.FC<HelmReleaseGroupProps> = ({
+  element,
+  editAccess,
+  selected,
+  onSelect,
+  onContextMenu,
+  contextMenuOpen,
+  dndDropRef,
+}) => {
   const [hover, hoverRef] = useHover();
-  const [labelHover, labelHoverRef] = useHover();
-  const { x, y, width, height } = element.getBounds();
-  const [{ dragging }, dragNodeRef] = useDragNode({
-    collect: (monitor) => ({
-      dragging: monitor.isDragging(),
-    }),
-  });
-  const [{ labelDragging }, dragLabelRef] = useDragNode({
-    collect: (monitor) => ({
-      labelDragging: monitor.isDragging(),
-    }),
-  });
-  const refs = useCombineRefs(dragNodeRef, hoverRef);
+  const [innerHover, innerHoverRef] = useHover();
+  const [{ dragging, regrouping }, dragNodeRef] = useDragNode(
+    nodeDragSourceSpec(TYPE_HELM_RELEASE, true, editAccess),
+    {
+      element,
+    },
+  );
+  const [{ dragging: labelDragging, regrouping: labelRegrouping }, dragLabelRef] = useDragNode(
+    nodeDragSourceSpec(TYPE_HELM_RELEASE, true, editAccess),
+    {
+      element,
+    },
+  );
+
+  const nodeRefs = useCombineRefs(innerHoverRef, dragNodeRef);
   const [filtered] = useSearchFilter(element.getLabel());
+  const hasChildren = element.getChildren()?.length > 0;
+  const { x, y, width, height } = element.getBounds();
+
   return (
-    <>
+    <g
+      ref={hoverRef}
+      onClick={onSelect}
+      onContextMenu={editAccess ? onContextMenu : null}
+      className={classNames('odc-helm-release', {
+        'is-dragging': dragging || labelDragging,
+        'is-filtered': filtered,
+      })}
+    >
       <NodeShadows />
-      <Layer id={dragging ? undefined : 'groups'}>
+      <Layer
+        id={(dragging || labelDragging) && (regrouping || labelRegrouping) ? undefined : 'groups2'}
+      >
         <g
+          ref={nodeRefs}
           className={classNames('odc-helm-release', {
-            'is-dragging': dragging || labelDragging,
             'is-selected': selected,
+            'is-dragging': dragging || labelDragging,
             'is-filtered': filtered,
           })}
         >
           <rect
-            ref={refs}
+            ref={dndDropRef}
             className="odc-helm-release__bg"
-            onClick={onSelect}
             x={x}
             y={y}
             width={width}
@@ -56,37 +86,33 @@ const HelmReleaseGroup: React.FC<HelmReleaseGroupProps> = ({ element, onSelect, 
             rx="5"
             ry="5"
             filter={createSvgIdUrl(
-              hover || labelHover || dragging || labelDragging
+              hover || innerHover || contextMenuOpen || dragging || labelDragging
                 ? NODE_SHADOW_FILTER_ID_HOVER
                 : NODE_SHADOW_FILTER_ID,
             )}
           />
+          {!hasChildren && (
+            <text x={x + width / 2} y={y + height / 2} dy="0.35em" textAnchor="middle">
+              No Resources
+            </text>
+          )}
         </g>
       </Layer>
       {element.getLabel() && (
-        <g
-          ref={labelHoverRef}
-          onClick={onSelect}
-          className={classNames('odc-helm-release', {
-            'is-dragging': dragging || labelDragging,
-            'is-filtered': filtered,
-          })}
+        <SvgBoxedText
+          className="odc-base-node__label"
+          x={x + width / 2}
+          y={y + height + 20}
+          paddingX={8}
+          paddingY={4}
+          kind="HelmRelease"
+          dragRef={dragLabelRef}
+          typeIconClass="icon-helm"
         >
-          <SvgBoxedText
-            className="odc-base-node__label"
-            x={x + width / 2}
-            y={y + height + 20}
-            paddingX={8}
-            paddingY={4}
-            kind="HelmRelease"
-            dragRef={dragLabelRef}
-            typeIconClass="icon-helm"
-          >
-            {element.getLabel()}
-          </SvgBoxedText>
-        </g>
+          {element.getLabel()}
+        </SvgBoxedText>
       )}
-    </>
+    </g>
   );
 };
 

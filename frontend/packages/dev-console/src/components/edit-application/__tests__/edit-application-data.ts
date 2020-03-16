@@ -1,9 +1,9 @@
 import { ValidatedOptions } from '@patternfly/react-core';
 import { K8sResourceKind } from '@console/internal/module/k8s';
 import { ServiceModel } from '@console/knative-plugin';
-import { AppResources } from '../edit-application-types';
+import { UNASSIGNED_KEY } from '../../../const';
 import { DeployImageFormData, GitImportFormData, Resources } from '../../import/import-types';
-import { UNASSIGNED_KEY } from '../../import/app/ApplicationSelector';
+import { AppResources } from '../edit-application-types';
 
 export const knativeService: K8sResourceKind = {
   apiVersion: `${ServiceModel.apiGroup}/${ServiceModel.apiVersion}`,
@@ -319,41 +319,43 @@ export const appResources: AppResources = {
   imageStream: {
     loaded: true,
     loadError: '',
-    data: {
-      kind: 'ImageStream',
-      apiVersion: 'image.openshift.io/v1',
-      metadata: {
-        annotations: {
-          'app.openshift.io/vcs-ref': 'master',
-          'app.openshift.io/vcs-uri': 'https://github.com/divyanshiGupta/nationalparks-py',
+    data: [
+      {
+        kind: 'ImageStream',
+        apiVersion: 'image.openshift.io/v1',
+        metadata: {
+          annotations: {
+            'app.openshift.io/vcs-ref': 'master',
+            'app.openshift.io/vcs-uri': 'https://github.com/divyanshiGupta/nationalparks-py',
+          },
+          selfLink: '/apis/image.openshift.io/v1/namespaces/div/imagestreams/nationalparks-py',
+          resourceVersion: '676247',
+          name: 'nationalparks-py',
+          uid: '2bc985ac-f834-45e5-9a86-830edb6bc8bd',
+          creationTimestamp: '2020-01-15T15:51:47Z',
+          generation: 1,
+          namespace: 'div',
+          labels: {
+            app: 'nationalparks-py',
+            'app.kubernetes.io/component': 'nationalparks-py',
+            'app.kubernetes.io/instance': 'nationalparks-py',
+            'app.kubernetes.io/name': 'python',
+            'app.kubernetes.io/part-of': 'nodejs-rest-http-app',
+            'app.openshift.io/runtime': 'python',
+            'app.openshift.io/runtime-version': '3.6',
+          },
         },
-        selfLink: '/apis/image.openshift.io/v1/namespaces/div/imagestreams/nationalparks-py',
-        resourceVersion: '676247',
-        name: 'nationalparks-py',
-        uid: '2bc985ac-f834-45e5-9a86-830edb6bc8bd',
-        creationTimestamp: '2020-01-15T15:51:47Z',
-        generation: 1,
-        namespace: 'div',
-        labels: {
-          app: 'nationalparks-py',
-          'app.kubernetes.io/component': 'nationalparks-py',
-          'app.kubernetes.io/instance': 'nationalparks-py',
-          'app.kubernetes.io/name': 'python',
-          'app.kubernetes.io/part-of': 'nodejs-rest-http-app',
-          'app.openshift.io/runtime': 'python',
-          'app.openshift.io/runtime-version': '3.6',
+        spec: {
+          lookupPolicy: {
+            local: false,
+          },
+        },
+        status: {
+          dockerImageRepository:
+            'image-registry.openshift-image-registry.svc:5000/div/nationalparks-py',
         },
       },
-      spec: {
-        lookupPolicy: {
-          local: false,
-        },
-      },
-      status: {
-        dockerImageRepository:
-          'image-registry.openshift-image-registry.svc:5000/div/nationalparks-py',
-      },
-    },
+    ],
   },
 };
 
@@ -583,4 +585,82 @@ export const internalImageValues: DeployImageFormData = {
   },
   build: { env: [], triggers: {}, strategy: '' },
   isSearchingForImage: false,
+};
+
+export const knAppResources: AppResources = {
+  editAppResource: {
+    loaded: true,
+    loadError: '',
+    data: knativeService,
+  },
+  route: {
+    loaded: false,
+    loadError: 'routes.route.openshift.io "greeter" not found',
+    data: {},
+  },
+  buildConfig: {
+    loaded: false,
+    loadError: 'Error: buildconfigs.build.openshift.io "greeter" not found',
+    data: {},
+  },
+  imageStream: {
+    loaded: true,
+    loadError: '',
+    data: [],
+  },
+};
+
+export const knExternalImageValues: DeployImageFormData = {
+  application: { name: '', selectedKey: '#UNASSIGNED_KEY#' },
+  build: { env: [], strategy: '', triggers: {} },
+  deployment: { env: [], replicas: 1, triggers: { image: false } },
+  formType: 'edit',
+  image: { image: {}, name: '', ports: [], status: { metadata: {}, status: '' }, tag: '' },
+  imageStream: { grantAccess: true, image: '', namespace: '', tag: '' },
+  isSearchingForImage: false,
+  isi: { image: {}, name: '', ports: [], status: { metadata: {}, status: '' }, tag: '' },
+  labels: {},
+  limits: {
+    cpu: {
+      defaultLimitUnit: '',
+      defaultRequestUnit: '',
+      limit: '',
+      limitUnit: '',
+      request: '',
+      requestUnit: '',
+    },
+    memory: {
+      defaultLimitUnit: 'Mi',
+      defaultRequestUnit: 'Mi',
+      limit: '',
+      limitUnit: 'Mi',
+      request: '',
+      requestUnit: 'Mi',
+    },
+  },
+  name: 'nationalparks-py',
+  pipeline: { enabled: false },
+  project: { name: 'div' },
+  registry: 'external',
+  resources: Resources.KnativeService,
+  route: {
+    create: true,
+    defaultUnknownPort: 8080,
+    disable: true,
+    hostname: '',
+    path: '',
+    secure: false,
+    targetPort: '',
+    tls: {
+      caCertificate: '',
+      certificate: '',
+      destinationCACertificate: '',
+      insecureEdgeTerminationPolicy: '',
+      privateKey: '',
+      termination: '',
+    },
+    unknownTargetPort: '',
+  },
+  searchTerm: 'openshift/hello-openshift',
+  serverless: { scaling: { concurrencylimit: '', concurrencytarget: '', maxpods: '', minpods: 0 } },
 };

@@ -6,6 +6,7 @@ import {
   DeploymentKind,
   referenceFor,
 } from '@console/internal/module/k8s';
+import { SecretModel } from '@console/internal/models';
 import { getRouteWebURL } from '@console/internal/components/routes';
 import {
   TransformResourceData,
@@ -38,6 +39,7 @@ import {
   TopologyDataModel,
   TopologyDataResources,
   TopologyDataObject,
+  TopologyDataMap,
   Node,
   Edge,
   Group,
@@ -57,8 +59,17 @@ import {
   TYPE_WORKLOAD,
   TYPE_CONNECTS_TO,
   TYPE_SERVICE_BINDING,
+  NODE_WIDTH,
+  NODE_HEIGHT,
+  NODE_PADDING,
+  GROUP_WIDTH,
+  GROUP_HEIGHT,
+  GROUP_PADDING,
+  KNATIVE_GROUP_NODE_HEIGHT,
+  KNATIVE_GROUP_NODE_PADDING,
 } from './const';
 import { ClusterServiceVersionKind } from '@console/operator-lifecycle-manager';
+import { HelmReleaseResourcesMap } from '../helm/helm-types';
 
 export const allowedResources = ['deployments', 'deploymentConfigs', 'daemonSets', 'statefulSets'];
 
@@ -69,8 +80,16 @@ export const getEditURL = (gitURL: string, cheURL: string) => {
   return gitURL && cheURL ? `${cheURL}/f?url=${gitURL}&policies.create=peruser` : gitURL;
 };
 
-export const isHelmReleaseNode = (obj: K8sResourceKind): boolean => {
-  return obj?.metadata?.labels?.['heritage'] === 'Helm' || !!obj?.metadata?.labels?.['charts'];
+export const getHelmReleaseKey = (resource) => `${resource.kind}---${resource.metadata.name}`;
+
+export const isHelmReleaseNode = (
+  obj: K8sResourceKind,
+  helmResourcesMap: HelmReleaseResourcesMap,
+): boolean => {
+  if (helmResourcesMap) {
+    return helmResourcesMap.hasOwnProperty(getHelmReleaseKey(obj));
+  }
+  return false;
 };
 
 export const getKialiLink = (consoleLinks: K8sResourceKind[], namespace: string): string => {
@@ -118,6 +137,17 @@ export const getRoutesUrl = (resource: OverviewItem): string => {
     return getRouteWebURL(routes[0]);
   }
   return getRouteData(ksroutes, resource);
+};
+
+const dataObjectFromModel = (node: Node | Group): TopologyDataObject => {
+  return {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    resources: null,
+    operatorBackedService: false,
+    data: null,
+  };
 };
 
 /**
@@ -232,14 +262,7 @@ export const getTopologyNodeItem = (
   const uid = _.get(dc, ['metadata', 'uid']);
   const name = _.get(dc, ['metadata', 'name']);
   const label = _.get(dc, ['metadata', 'labels', 'app.openshift.io/instance']);
-  if (isHelmReleaseNode(dc)) {
-    return {
-      id: uid,
-      type: TYPE_HELM_WORKLOAD,
-      name: label || name,
-      ...(children && children.length && { children }),
-    };
-  }
+
   return {
     id: uid,
     type: type || TYPE_WORKLOAD,
@@ -327,34 +350,12 @@ export const getTopologyEdgeItems = (
   return edges;
 };
 
-export const getTopologyHelmReleaseGroupItem = (obj: K8sResourceKind, groups: Group[]): Group[] => {
-  const releaseLabel = _.get(obj, ['metadata', 'labels', 'release'], null);
-  const uid = _.get(obj, ['metadata', 'uid'], null);
-  if (!releaseLabel) return groups;
-  const releaseExists = _.some(groups, { name: releaseLabel });
-  if (!releaseExists) {
-    groups.push({
-      id: `${TYPE_HELM_RELEASE}:${releaseLabel}`,
-      type: TYPE_HELM_RELEASE,
-      name: releaseLabel,
-      nodes: [uid],
-    });
-  } else {
-    const gIndex = _.findIndex(groups, { name: releaseLabel });
-    groups[gIndex].nodes.push(uid);
-  }
-  return groups;
-};
-
 /**
  * create groups data for graph
  * @param dc
  * @param groups
  */
-export const getTopologyGroupItems = (dc: K8sResourceKind, groups: Group[]): Group[] => {
-  if (isHelmReleaseNode(dc)) {
-    return getTopologyHelmReleaseGroupItem(dc, groups);
-  }
+export const getTopologyGroupItems = (dc: K8sResourceKind, groups: Group[]): void => {
   const labels = _.get(dc, ['metadata', 'labels']);
   const uid = _.get(dc, ['metadata', 'uid']);
   _.forEach(labels, (label, key) => {
@@ -379,8 +380,57 @@ export const getTopologyGroupItems = (dc: K8sResourceKind, groups: Group[]): Gro
       }
     }
   });
-  return groups;
 };
+
+export const getTopologyHelmReleaseGroupItem = (
+  obj: K8sResourceKind,
+  groups: Group[],
+  helmResourcesMap: HelmReleaseResourcesMap,
+  secrets: K8sResourceKind[],
+  dataToShowOnNodes: TopologyDataMap,
+): void => {
+  const resourceKindName = getHelmReleaseKey(obj);
+  const releaseName = helmResourcesMap[resourceKindName]?.releaseName;
+  const uid = _.get(obj, ['metadata', 'uid'], null);
+
+  if (!releaseName) return;
+
+  const releaseExists = _.some(groups, { name: releaseName });
+
+  if (!releaseExists) {
+    const secret = secrets.find((nextSecret) => {
+      const { labels } = nextSecret.metadata;
+      return labels && labels.name && labels.name.includes(releaseName);
+    });
+    const helmGroup = {
+      id: `${TYPE_HELM_RELEASE}:${releaseName}`,
+      type: TYPE_HELM_RELEASE,
+      name: releaseName,
+      nodes: [uid],
+    };
+
+    if (secret) {
+      helmGroup.id = secret.metadata.uid;
+      getTopologyGroupItems(secret, groups);
+    }
+
+    const dataModel = dataObjectFromModel(helmGroup);
+    const { kind, apiVersion } = SecretModel;
+    dataModel.resources = {
+      obj: secret ? { ...secret, kind, apiVersion } : null,
+      buildConfigs: null,
+      services: null,
+      routes: null,
+    };
+    dataToShowOnNodes[helmGroup.id] = dataModel;
+    groups.push(helmGroup);
+    return;
+  }
+
+  const gIndex = _.findIndex(groups, { name: releaseName });
+  groups[gIndex].nodes.push(uid);
+};
+
 /**
  * Creates the operator backed services topology data
  * @param resources
@@ -395,6 +445,7 @@ const getOperatoarBackedServiceData = (
   installedOperators: K8sResourceKind[],
   operatorBackedServiceKindMap: OperatorBackedServiceKindMap,
   topologyGraphAndNodeData: TopologyDataModel,
+  application: string,
 ): TopologyDataModel => {
   const obsGroups = {};
   const operatorMap = {};
@@ -406,7 +457,8 @@ const getOperatoarBackedServiceData = (
   } = topologyGraphAndNodeData;
   _.forEach(transformBy, (key) => {
     if (!_.isEmpty(resources[key].data)) {
-      _.map(resources[key].data, (deployment) => {
+      const resourceData = filterBasedOnActiveApplication(resources[key].data, application);
+      _.map(resourceData, (deployment) => {
         const nodeResourceKind = _.get(deployment, 'metadata.ownerReferences[0].kind');
         const ownerUid = _.get(deployment, 'metadata.ownerReferences[0].uid');
         const appGroup = _.get(deployment, ['metadata', 'labels', 'app.kubernetes.io/part-of']);
@@ -524,11 +576,11 @@ export const transformTopologyData = (
   utils?: Function[],
   filters?: TopologyFilters,
   trafficData?: TrafficData,
+  helmResourcesMap?: HelmReleaseResourcesMap,
 ): TopologyDataModel => {
   const installedOperators = _.get(resources, 'clusterServiceVersions.data');
   const operatorBackedServiceKindMap = getOperatorBackedServiceKindMap(installedOperators);
   const serviceBindingRequests = _.get(resources, 'serviceBindingRequests.data');
-
   let topologyGraphAndNodeData: TopologyDataModel = {
     graph: { nodes: [], edges: [], groups: [] },
     topology: {},
@@ -607,14 +659,15 @@ export const transformTopologyData = (
     }),
   );
 
+  const secrets = _.get(resources, 'secrets.data', []);
   _.forEach(transformBy, (key) => {
     if (!_.isEmpty(resources[key].data)) {
       // filter data based on the active application
       const resourceData = filterBasedOnActiveApplication(resources[key].data, application);
       let nodesData = [];
       let edgesData = [];
-      let groupsData = topologyGraphAndNodeData.graph.groups;
-      const dataToShowOnNodes = {};
+      const groupsData = topologyGraphAndNodeData.graph.groups;
+      const dataToShowOnNodes: TopologyDataMap = {};
 
       transformResourceData[key](resourceData).forEach((item) => {
         const { obj: deploymentConfig } = item;
@@ -629,7 +682,12 @@ export const transformTopologyData = (
         );
         if (!_.some(topologyGraphAndNodeData.graph.nodes, { id: uid })) {
           const operatorBacked = dataToShowOnNodes[uid].operatorBackedService;
-          const nodeType = operatorBacked ? TYPE_OPERATOR_WORKLOAD : TYPE_WORKLOAD;
+          const nodeType = operatorBacked
+            ? TYPE_OPERATOR_WORKLOAD
+            : isHelmReleaseNode(deploymentConfig, helmResourcesMap)
+            ? TYPE_HELM_WORKLOAD
+            : TYPE_WORKLOAD;
+
           nodesData = [...nodesData, getTopologyNodeItem(deploymentConfig, nodeType)];
           edgesData = [
             ...edgesData,
@@ -641,9 +699,17 @@ export const transformTopologyData = (
             ),
           ];
           if (!operatorBacked) {
-            groupsData = [
-              ...getTopologyGroupItems(deploymentConfig, topologyGraphAndNodeData.graph.groups),
-            ];
+            if (!isHelmReleaseNode(deploymentConfig, helmResourcesMap)) {
+              getTopologyGroupItems(deploymentConfig, groupsData);
+            } else {
+              getTopologyHelmReleaseGroupItem(
+                deploymentConfig,
+                groupsData,
+                helmResourcesMap,
+                secrets,
+                dataToShowOnNodes,
+              );
+            }
           }
         }
       });
@@ -667,19 +733,9 @@ export const transformTopologyData = (
     installedOperators,
     operatorBackedServiceKindMap,
     topologyGraphAndNodeData,
+    application,
   );
   return topologyGraphAndNodeData;
-};
-
-const dataObjectFromModel = (node: Node | Group): TopologyDataObject => {
-  return {
-    id: node.id,
-    name: node.name,
-    type: node.type,
-    resources: null,
-    operatorBackedService: false,
-    data: null,
-  };
 };
 
 export const topologyModelFromDataModel = (
@@ -691,8 +747,8 @@ export const topologyModelFromDataModel = (
       const data: TopologyDataObject = dataModel.topology[d.id] || dataObjectFromModel(d);
       data.groupResources = d.children && d.children.map((id) => dataModel.topology[id]);
       return {
-        width: 300,
-        height: d.type === TYPE_KNATIVE_SERVICE ? 100 : 180,
+        width: GROUP_WIDTH,
+        height: d.type === TYPE_KNATIVE_SERVICE ? KNATIVE_GROUP_NODE_HEIGHT : GROUP_HEIGHT,
         id: d.id,
         type: d.type,
         label: dataModel.topology[d.id].name,
@@ -702,20 +758,23 @@ export const topologyModelFromDataModel = (
           ((d.type === TYPE_KNATIVE_SERVICE && !filters.display.knativeServices) ||
             (d.type === TYPE_OPERATOR_BACKED_SERVICE && !filters.display.operatorGrouping)),
         children: d.children,
-        group: d.children?.length > 0,
+        group: true,
         shape: NodeShape.rect,
         style: {
-          padding: [40, 50, 40, 40],
+          padding: d.type === TYPE_KNATIVE_SERVICE ? KNATIVE_GROUP_NODE_PADDING : GROUP_PADDING,
         },
       };
     }
     return {
-      width: 104,
-      height: 104,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
       id: d.id,
       type: d.type,
       label: dataModel.topology[d.id].name,
       data: dataModel.topology[d.id],
+      style: {
+        padding: NODE_PADDING,
+      },
     };
   });
 
@@ -723,8 +782,8 @@ export const topologyModelFromDataModel = (
     const data: TopologyDataObject = dataModel.topology[d.id] || dataObjectFromModel(d);
     data.groupResources = d.nodes.map((id) => dataModel.topology[id]);
     return {
-      width: 300,
-      height: 180,
+      width: GROUP_WIDTH,
+      height: GROUP_HEIGHT,
       id: d.id,
       group: true,
       type: d.type,
@@ -736,7 +795,7 @@ export const topologyModelFromDataModel = (
       children: d.nodes,
       label: d.name,
       style: {
-        padding: 40,
+        padding: GROUP_PADDING,
       },
     };
   });

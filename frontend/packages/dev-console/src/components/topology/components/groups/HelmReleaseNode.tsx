@@ -8,26 +8,42 @@ import {
   createSvgIdUrl,
   useDragNode,
   WithSelectionProps,
+  WithDndDropProps,
+  WithContextMenuProps,
   observer,
   useCombineRefs,
 } from '@console/topology';
 import NodeShadows, { NODE_SHADOW_FILTER_ID_HOVER, NODE_SHADOW_FILTER_ID } from '../NodeShadows';
 import useSearchFilter from '../../filters/useSearchFilter';
 import GroupNode from '../nodes/GroupNode';
+import { nodeDragSourceSpec } from '../../componentUtils';
+import { TYPE_HELM_RELEASE } from '../../const';
 
 export type HelmReleaseNodeProps = {
   element: Node;
-} & WithSelectionProps;
+  editAccess: boolean;
+} & WithSelectionProps &
+  WithContextMenuProps &
+  WithDndDropProps;
 
-const HelmReleaseNode: React.FC<HelmReleaseNodeProps> = ({ element, onSelect, selected }) => {
+const HelmReleaseNode: React.FC<HelmReleaseNodeProps> = ({
+  element,
+  editAccess,
+  selected,
+  onSelect,
+  onContextMenu,
+  contextMenuOpen,
+  dndDropRef,
+}) => {
   useAnchor((e: Node) => new RectAnchor(e, 4));
   const [hover, hoverRef] = useHover();
-  const [{ dragging }, dragNodeRef] = useDragNode({
-    collect: (monitor) => ({
-      dragging: monitor.isDragging(),
-    }),
-  });
-  const refs = useCombineRefs<SVGRectElement>(dragNodeRef, hoverRef);
+  const [{ dragging }, dragNodeRef] = useDragNode(
+    nodeDragSourceSpec(TYPE_HELM_RELEASE, true, editAccess),
+    {
+      element,
+    },
+  );
+  const refs = useCombineRefs<SVGRectElement>(dragNodeRef, dndDropRef, hoverRef);
   const [filtered] = useSearchFilter(element.getLabel());
   const { width, height } = element.getBounds();
 
@@ -35,6 +51,7 @@ const HelmReleaseNode: React.FC<HelmReleaseNodeProps> = ({ element, onSelect, se
     <g
       ref={refs}
       onClick={onSelect}
+      onContextMenu={editAccess ? onContextMenu : null}
       className={classNames('odc-helm-release', {
         'is-dragging': dragging,
         'is-selected': selected,
@@ -44,7 +61,9 @@ const HelmReleaseNode: React.FC<HelmReleaseNodeProps> = ({ element, onSelect, se
       <NodeShadows />
       <rect
         filter={createSvgIdUrl(
-          hover || dragging ? NODE_SHADOW_FILTER_ID_HOVER : NODE_SHADOW_FILTER_ID,
+          hover || contextMenuOpen || dragging
+            ? NODE_SHADOW_FILTER_ID_HOVER
+            : NODE_SHADOW_FILTER_ID,
         )}
         className="odc-helm-release__bg"
         x={0}

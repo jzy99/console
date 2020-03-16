@@ -1,10 +1,11 @@
 import * as React from 'react';
 import * as _ from 'lodash';
-import { useFormikContext, FormikValues } from 'formik';
+import { useFormikContext, FormikValues, getIn } from 'formik';
 import { ValidatedOptions } from '@patternfly/react-core';
 import { DropdownField } from '@console/shared';
-import { k8sGet, K8sResourceKind } from '@console/internal/module/k8s';
+import { k8sGet, K8sResourceKind, ContainerPort } from '@console/internal/module/k8s';
 import { ImageStreamTagModel } from '@console/internal/models';
+import { UNASSIGNED_KEY } from '../../../const';
 import {
   getImageStreamTags,
   getPorts,
@@ -16,8 +17,15 @@ import { ImageStreamContext } from './ImageStreamContext';
 const ImageStreamTagDropdown: React.FC = () => {
   let imageStreamTagList = {};
   const {
-    values: { imageStream, application, formType },
+    values: {
+      imageStream,
+      application,
+      formType,
+      isi: { ports: isiPorts },
+    },
     setFieldValue,
+    initialValues,
+    touched,
   } = useFormikContext<FormikValues>();
   const { state, hasImageStreams, setValidated } = React.useContext(ImageStreamContext);
   const { selectedImageStream, accessLoading, loading } = state;
@@ -43,15 +51,20 @@ const ImageStreamTagDropdown: React.FC = () => {
           setFieldValue('isi.ports', ports);
           setFieldValue('image.ports', ports);
           formType !== 'edit' && setFieldValue('name', getSuggestedName(name));
-          !application.name && setFieldValue('application.name', `${getSuggestedName(name)}-app`);
+          application.selectedKey !== UNASSIGNED_KEY &&
+            !application.name &&
+            setFieldValue('application.name', `${getSuggestedName(name)}-app`);
           // set default port value
-          const targetPort = _.head(ports);
+          const targetPort =
+            (!initialValues.route.targetPort || getIn(touched.imageStream, 'image')) &&
+            !getIn(touched.route, 'targetPort') &&
+            _.head(ports);
           targetPort && setFieldValue('route.targetPort', makePortName(targetPort));
           setValidated(ValidatedOptions.success);
         })
         .catch((error) => {
           setFieldValue('isi', {});
-          setFieldValue('isi.status', error.message);
+          setFieldValue('isi.status', { metadata: {}, status: '', message: error.message });
           setFieldValue('isSearchingForImage', false);
           setValidated(ValidatedOptions.error);
         });
@@ -59,16 +72,38 @@ const ImageStreamTagDropdown: React.FC = () => {
     [
       setFieldValue,
       imageStream.image,
-      imageStream.namespace,
       formType,
+      application.selectedKey,
       application.name,
       setValidated,
+      imageStream.namespace,
+      initialValues.route.targetPort,
+      touched.imageStream,
+      touched.route,
     ],
   );
 
   React.useEffect(() => {
     imageStream.tag && searchImageTag(imageStream.tag);
   }, [imageStream.tag, searchImageTag]);
+
+  React.useEffect(() => {
+    if (
+      getIn(touched.imageStream, 'image') &&
+      !getIn(touched.route, 'targetPort') &&
+      !_.isEqual(initialValues.imageStream.image, imageStream.image)
+    ) {
+      const targetPort: ContainerPort = _.head(isiPorts);
+      targetPort && setFieldValue('route.targetPort', makePortName(targetPort));
+    }
+  }, [
+    touched.route,
+    touched.imageStream,
+    initialValues.imageStream.image,
+    imageStream.image,
+    setFieldValue,
+    isiPorts,
+  ]);
 
   return (
     <DropdownField

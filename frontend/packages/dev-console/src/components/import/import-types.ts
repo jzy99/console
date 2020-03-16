@@ -70,6 +70,7 @@ export interface DeployImageFormData {
   image: ImageStreamImageData;
   isSearchingForImage: boolean;
   resources: Resources;
+  resourceTypesNotValid?: Resources[];
   serverless?: ServerlessData;
   pipeline?: PipelineData;
   labels: { [name: string]: string };
@@ -92,6 +93,7 @@ export interface GitImportFormData {
   image: ImageData;
   route: RouteData;
   resources: Resources;
+  resourceTypesNotValid?: Resources[];
   build: BuildData;
   deployment: DeploymentData;
   labels: { [name: string]: string };
@@ -178,7 +180,7 @@ export interface BuildData {
 export interface DeploymentData {
   triggers: {
     image: boolean;
-    config: boolean;
+    config?: boolean;
   };
   replicas: number;
   env: (NameValuePair | NameValueFromPair)[];
@@ -223,8 +225,8 @@ export enum ImportTypes {
 
 export enum Resources {
   OpenShift = 'openshift',
-  Kubernetes = 'k8s',
-  KnativeService = 'knativeservice',
+  Kubernetes = 'kubernetes',
+  KnativeService = 'knative',
 }
 
 export interface ImportData {

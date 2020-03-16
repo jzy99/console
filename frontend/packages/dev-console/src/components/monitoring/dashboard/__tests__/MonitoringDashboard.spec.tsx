@@ -1,8 +1,12 @@
 import * as React from 'react';
 import { shallow } from 'enzyme';
 import * as link from '@console/internal/components/utils';
-import MonitoringDashboard from '../MonitoringDashboard';
-import MonitoringDashboardGraph from '../MonitoringDashboardGraph';
+import {
+  TimespanDropdown,
+  PollIntervalDropdown,
+} from '@console/internal/components/monitoring/dashboards';
+import { MonitoringDashboard } from '../MonitoringDashboard';
+import ConnectedMonitoringDashboardGraph from '../MonitoringDashboardGraph';
 import { monitoringDashboardQueries, topWorkloadMetricsQueries } from '../../queries';
 
 type MonitoringDashboardProps = React.ComponentProps<typeof MonitoringDashboard>;
@@ -17,6 +21,8 @@ describe('Monitoring Dashboard Tab', () => {
       path: '',
       url: '',
     },
+    timespan: 1800000,
+    pollInterval: 90000,
   };
 
   it('should render Monitoring Dashboard tab', () => {
@@ -35,7 +41,7 @@ describe('Monitoring Dashboard Tab', () => {
     const wrapper = shallow(<MonitoringDashboard {...monitoringDashboardProps} />);
     expect(
       wrapper
-        .find(MonitoringDashboardGraph)
+        .find(ConnectedMonitoringDashboardGraph)
         .first()
         .props().query,
     ).toEqual(workloadQuery);
@@ -50,9 +56,15 @@ describe('Monitoring Dashboard Tab', () => {
     const wrapper = shallow(<MonitoringDashboard {...monitoringDashboardProps} />);
     expect(
       wrapper
-        .find(MonitoringDashboardGraph)
+        .find(ConnectedMonitoringDashboardGraph)
         .first()
         .props().query,
     ).toEqual(dashboardQuery);
+  });
+
+  it('should render Time Range & Refresh Interval dropdowns', () => {
+    const wrapper = shallow(<MonitoringDashboard {...monitoringDashboardProps} />);
+    expect(wrapper.find(TimespanDropdown).exists()).toBe(true);
+    expect(wrapper.find(PollIntervalDropdown).exists()).toBe(true);
   });
 });

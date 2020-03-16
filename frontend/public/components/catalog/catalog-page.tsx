@@ -3,12 +3,13 @@ import * as _ from 'lodash-es';
 import { Helmet } from 'react-helmet';
 import { safeLoad } from 'js-yaml';
 
-import { ANNOTATIONS, FLAGS } from '@console/shared';
+import { ANNOTATIONS, FLAGS, APIError } from '@console/shared';
 import { CatalogTileViewPage } from './catalog-items';
 import {
   k8sListPartialMetadata,
   referenceForModel,
   serviceClassDisplayName,
+  K8sResourceCommon,
   K8sResourceKind,
   PartialObjectMetadata,
 } from '../../module/k8s';
@@ -206,14 +207,15 @@ export class CatalogListPage extends React.Component<CatalogListPageProps, Catal
       (normalizedCharts, charts) => {
         charts.forEach((chart: HelmChart) => {
           const tags = chart.keywords;
-          const name = _.startCase(chart.name);
+          const chartName = chart.name;
+          const tileName = `${_.startCase(chartName)} v${chart.version}`;
           const tileImgUrl = chart.icon || getImageForIconClass('icon-helm');
           const chartURL = encodeURIComponent(_.get(chart, 'urls.0'));
 
           normalizedCharts.push({
             obj: { ...chart, ...{ metadata: { uid: chart.digest } } },
             kind: 'HelmChart',
-            tileName: `${name} v${chart.version}`,
+            tileName,
             tileIconClass: null,
             tileImgUrl,
             tileDescription: chart.description,
@@ -222,7 +224,7 @@ export class CatalogListPage extends React.Component<CatalogListPageProps, Catal
             tileProvider: _.get(chart, 'maintainers.0.name'),
             documentationUrl: chart.home,
             supportUrl: chart.home,
-            href: `/catalog/helm-install?chartURL=${chartURL}&preselected-ns=${currentNamespace}`,
+            href: `/catalog/helm-install?chartName=${chartName}&chartURL=${chartURL}&preselected-ns=${currentNamespace}`,
           });
         });
         return normalizedCharts;
@@ -291,11 +293,13 @@ export const Catalog = connectToFlags<CatalogProps>(
   const { flags, mock, namespace } = props;
   const openshiftFlag = flags[FLAGS.OPENSHIFT];
   const serviceCatalogFlag = flags[FLAGS.SERVICE_CATALOG];
-  const [templateMetadata, setTemplateMetadata] = React.useState();
-  const [templateError, setTemplateError] = React.useState();
-  const [projectTemplateMetadata, setProjectTemplateMetadata] = React.useState();
-  const [projectTemplateError, setProjectTemplateError] = React.useState();
-  const [helmCharts, setHelmCharts] = React.useState();
+  const [templateMetadata, setTemplateMetadata] = React.useState<K8sResourceCommon>();
+  const [templateError, setTemplateError] = React.useState<APIError>();
+  const [projectTemplateMetadata, setProjectTemplateMetadata] = React.useState<K8sResourceCommon[]>(
+    null,
+  );
+  const [projectTemplateError, setProjectTemplateError] = React.useState<APIError>();
+  const [helmCharts, setHelmCharts] = React.useState<HelmChartEntries>();
 
   const loadTemplates = openshiftFlag && !mock;
 
@@ -334,13 +338,11 @@ export const Catalog = connectToFlags<CatalogProps>(
   }, [loadTemplates, namespace]);
 
   React.useEffect(() => {
-    coFetch('https://redhat-developer.github.io/redhat-helm-charts/index.yaml').then(
-      async (res) => {
-        const yaml = await res.text();
-        const json = safeLoad(yaml);
-        setHelmCharts(json.entries);
-      },
-    );
+    coFetch('/api/helm/charts/index.yaml').then(async (res) => {
+      const yaml = await res.text();
+      const json = safeLoad(yaml);
+      setHelmCharts(json.entries);
+    });
   }, []);
 
   const error = templateError || projectTemplateError;

@@ -17,28 +17,23 @@ import {
   PlusCircleIcon,
 } from '@patternfly/react-icons';
 
+import { withFallback } from '@console/shared/src/components/error/error-boundary';
 import * as k8sActions from '../actions/k8s';
 import * as UIActions from '../actions/ui';
 import { coFetchJSON } from '../co-fetch';
-import {
-  alertState,
-  AlertStates,
-  connectToURLs,
-  MonitoringRoutes,
-  silenceState,
-  SilenceStates,
-} from '../reducers/monitoring';
+import { alertState, AlertStates, silenceState, SilenceStates } from '../reducers/monitoring';
 import store from '../redux';
 import { Table, TableData, TableRow, TextFilter } from './factory';
 import { confirmModal } from './modals';
 import MonitoringDashboardsPage from './monitoring/dashboards';
 import { graphStateToProps, QueryBrowserPage, ToggleGraph } from './monitoring/metrics';
-import { Labels, QueryBrowser, QueryObj } from './monitoring/query-browser';
+import { PrometheusLabels } from './graphs';
+import { QueryBrowser, QueryObj } from './monitoring/query-browser';
 import { CheckBoxes } from './row-filter';
 import { formatPrometheusDuration } from './utils/datetime';
-import { withFallback } from './utils/error-boundary';
 import { AlertmanagerYAMLEditorWrapper } from './monitoring/alert-manager-yaml-editor';
 import { AlertmanagerConfigWrapper } from './monitoring/alert-manager-config';
+import { refreshNotificationPollers } from './notification-drawer';
 import {
   ActionsMenu,
   ButtonBar,
@@ -100,12 +95,6 @@ const silencesToProps = ({ UI }) => UI.getIn(['monitoring', 'silences']) || {};
 const pollers = {};
 const pollerTimeouts = {};
 
-// Force a poller to execute now instead of waiting for the next poll interval
-const refreshPoller = (key) => {
-  clearTimeout(pollerTimeouts[key]);
-  _.invoke(pollers, key);
-};
-
 const silenceAlert = (alert) => ({
   label: 'Silence Alert',
   href: `${SilenceResource.plural}/~new?${labelsToParams(alert.labels)}`,
@@ -131,7 +120,7 @@ const cancelSilence = (silence) => ({
       executeFn: () =>
         coFetchJSON
           .delete(`${window.SERVER_FLAGS.alertManagerBaseURL}/api/v1/silence/${silence.id}`)
-          .then(() => refreshPoller('silences')),
+          .then(() => refreshNotificationPollers()),
     }),
 });
 
@@ -575,7 +564,7 @@ const silenceParamToProps = (state, { match }) => {
   const { data: silences, loaded, loadError }: Silences = silencesToProps(state);
   const { loaded: alertsLoaded }: Alerts = alertsToProps(state);
   const silence = _.find(silences, { id: _.get(match, 'params.id') });
-  return { alertsLoaded, loaded, loadError, silence };
+  return { alertsLoaded, loaded, loadError, silence, silences };
 };
 
 const SilencesDetailsPage = withFallback(
@@ -772,18 +761,15 @@ const AlertsPageDescription = () => (
   </p>
 );
 
-const HeaderAlertmanagerLink_ = ({ path, urls }) =>
-  _.isEmpty(urls[MonitoringRoutes.Alertmanager]) ? null : (
+const HeaderAlertmanagerLink = ({ path }) =>
+  _.isEmpty(window.SERVER_FLAGS.alertManagerPublicURL) ? null : (
     <span className="monitoring-header-link">
       <ExternalLink
-        href={`${urls[MonitoringRoutes.Alertmanager]}${path || ''}`}
+        href={`${window.SERVER_FLAGS.alertManagerPublicURL}${path || ''}`}
         text="Alertmanager UI"
       />
     </span>
   );
-const HeaderAlertmanagerLink = connectToURLs(MonitoringRoutes.Alertmanager)(
-  HeaderAlertmanagerLink_,
-);
 
 const alertsRowFilter = {
   type: 'alert-state',
@@ -1185,7 +1171,7 @@ class SilenceForm_ extends React.Component<SilenceFormProps, SilenceFormState> {
       .post(`${alertManagerBaseURL}/api/v1/silences`, body)
       .then(({ data }) => {
         this.setState({ error: undefined });
-        refreshPoller('silences');
+        refreshNotificationPollers();
         history.push(`${SilenceResource.plural}/${encodeURIComponent(_.get(data, 'silenceId'))}`);
       })
       .catch((err) =>
@@ -1223,7 +1209,7 @@ class SilenceForm_ extends React.Component<SilenceFormProps, SilenceFormState> {
           <div className="co-form-section__separator" />
 
           <div className="form-group">
-            <label className="co-required">Matchers</label> (label selectors)
+            <label className="co-required">Matchers (label selectors)</label>
             <p className="co-help-text">
               Alerts affected by this silence. Matching alerts must satisfy all of the specified
               label constraints, though they may have additional labels as well.
@@ -1495,7 +1481,7 @@ export const getAlerts = (data: PrometheusRulesResponse['data']): Alert[] => {
 
 const PollerPages = () => {
   React.useEffect(() => {
-    const poll: Poll = (url, key: 'alerts' | 'silences', dataHandler) => {
+    const poll: Poll = (url, key: 'alerts', dataHandler) => {
       store.dispatch(UIActions.monitoringLoading(key));
       const poller = (): void => {
         coFetchJSON(url)
@@ -1508,34 +1494,13 @@ const PollerPages = () => {
       poller();
     };
 
-    const { alertManagerBaseURL, prometheusBaseURL } = window.SERVER_FLAGS;
+    const { prometheusBaseURL } = window.SERVER_FLAGS;
 
     if (prometheusBaseURL) {
       poll(`${prometheusBaseURL}/api/v1/rules`, 'alerts', getAlerts);
     } else {
       store.dispatch(UIActions.monitoringErrored('alerts', new Error('prometheusBaseURL not set')));
     }
-
-    if (alertManagerBaseURL) {
-      poll(`${alertManagerBaseURL}/api/v1/silences`, 'silences', (data) => {
-        // Set a name field on the Silence to make things easier
-        _.each(data, (s) => {
-          s.name = _.get(_.find(s.matchers, { name: 'alertname' }), 'value');
-          if (!s.name) {
-            // No alertname, so fall back to displaying the other matchers
-            s.name = s.matchers
-              .map((m) => `${m.name}${m.isRegex ? '=~' : '='}${m.value}`)
-              .join(', ');
-          }
-        });
-        return data;
-      });
-    } else {
-      store.dispatch(
-        UIActions.monitoringErrored('silences', new Error('alertManagerBaseURL not set')),
-      );
-    }
-
     return () => _.each(pollerTimeouts, clearTimeout);
   }, []);
 
@@ -1586,8 +1551,8 @@ type Silences = {
 
 type PrometheusAlert = {
   activeAt?: string;
-  annotations: Labels;
-  labels: Labels & {
+  annotations: PrometheusLabels;
+  labels: PrometheusLabels & {
     alertname: string;
   };
   state: AlertStates;
@@ -1601,9 +1566,9 @@ export type Alert = PrometheusAlert & {
 
 type PrometheusRule = {
   alerts: PrometheusAlert[];
-  annotations: Labels;
+  annotations: PrometheusLabels;
   duration: number;
-  labels: Labels;
+  labels: PrometheusLabels;
   name: string;
   query: string;
 };
@@ -1686,7 +1651,7 @@ type AlertingPageProps = {
 };
 
 type GraphProps = {
-  filterLabels?: Labels;
+  filterLabels?: PrometheusLabels;
   hideGraphs: boolean;
   patchQuery: (index: number, patch: QueryObj) => any;
   rule: Rule;

@@ -11,6 +11,7 @@ import {
   ElementChildEventListener,
   NODE_COLLAPSE_CHANGE_EVENT,
   NodeCollapseChangeEventListener,
+  NodeStyle,
 } from '../types';
 import {
   leafNodeElements,
@@ -26,6 +27,7 @@ import {
 } from '../behavior';
 import { BaseEdge } from '../elements';
 import { ForceSimulation } from './ForceSimulation';
+import { Rect } from '../geom';
 
 class LayoutNode {
   protected readonly node: Node;
@@ -33,6 +35,12 @@ class LayoutNode {
   protected xx?: number;
 
   protected yy?: number;
+
+  protected nodeWidth: number;
+
+  protected nodeHeight: number;
+
+  protected nodeRadius: number;
 
   public readonly distance: number;
 
@@ -47,6 +55,12 @@ class LayoutNode {
     this.node = node;
     this.distance = distance;
     this.index = index;
+
+    // Currently we support only fixed node sizes, this will need to change if/when dynamic node sizes are supported
+    const bounds = this.nodeBounds;
+    this.nodeWidth = bounds.width + this.distance * 2;
+    this.nodeHeight = bounds.height + this.distance * 2;
+    this.nodeRadius = Math.max(bounds.width, bounds.height) / 2;
   }
 
   get element(): Node {
@@ -94,12 +108,24 @@ class LayoutNode {
     );
   }
 
+  get nodeBounds(): Rect {
+    const { padding } = this.node.getStyle<NodeStyle>();
+    // Currently non-group nodes do not include their padding in the bounds
+    if (!this.node.isGroup() && padding) {
+      return this.node
+        .getBounds()
+        .clone()
+        .padding(padding);
+    }
+    return this.node.getBounds();
+  }
+
   get width(): number {
-    return this.node.getBounds().width + this.distance * 2;
+    return this.nodeWidth;
   }
 
   get height(): number {
-    return this.node.getBounds().height + this.distance * 2;
+    return this.nodeHeight;
   }
 
   update() {
@@ -116,11 +142,11 @@ class LayoutNode {
   }
 
   get radius(): number {
-    return Math.max(this.node.getBounds().width, this.node.getBounds().height) / 2;
+    return this.nodeRadius;
   }
 
   get collisionRadius(): number {
-    return Math.max(this.width, this.height) / 2;
+    return this.radius + this.distance;
   }
 }
 

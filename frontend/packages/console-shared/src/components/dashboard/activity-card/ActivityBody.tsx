@@ -99,7 +99,6 @@ export const RecentEventsBodyContent: React.FC<RecentEventsBodyContentProps> = (
         className="co-activity-card__recent-list"
         events={sortedEvents}
         EventComponent={eventItem}
-        scrollableElementId="activity-body"
       />
     </Accordion>
   );
@@ -110,6 +109,7 @@ export const PauseButton: React.FC<PauseButtonProps> = ({ paused, togglePause })
     onClick={togglePause}
     className="co-activity-card__recent-actions"
     icon={paused ? <PlayIcon /> : <PauseIcon />}
+    data-test-id="events-pause-button"
   >
     {paused ? 'Resume' : 'Pause'}
   </DashboardCardButtonLink>

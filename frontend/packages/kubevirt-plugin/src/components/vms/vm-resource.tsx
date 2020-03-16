@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ResourceSummary, NodeLink, ResourceLink } from '@console/internal/components/utils';
-import { K8sKind, PodKind } from '@console/internal/module/k8s';
+import { K8sKind, PodKind, TemplateKind } from '@console/internal/module/k8s';
 import { getName, getNamespace, getNodeName } from '@console/shared';
 import { PodModel } from '@console/internal/models';
 import { VMKind, VMIKind } from '../../types';
@@ -12,7 +12,6 @@ import { DedicatedResourcesModal } from '../modals/dedicated-resources-modal/ded
 import { BootOrderModal } from '../modals/boot-order-modal/boot-order-modal';
 import VMStatusModal from '../modals/vm-status-modal/vm-status-modal';
 import { getDescription } from '../../selectors/selectors';
-import { getVMTemplateNamespacedName } from '../../selectors/vm-template/selectors';
 import { getFlavorText } from '../flavor-text';
 import { EditButton } from '../edit-button';
 import { VMStatuses } from '../vm-status';
@@ -25,12 +24,13 @@ import {
 } from '../modals/dedicated-resources-modal/consts';
 import { getOperatingSystemName, getOperatingSystem } from '../../selectors/vm';
 import { getVmiIpAddresses } from '../../selectors/vmi/ip-address';
-import { findVMPod } from '../../selectors/pod/selectors';
-import { isVMIPaused } from '../../selectors/vmi';
+import { findVMIPod } from '../../selectors/pod/selectors';
+import { isVMIPaused, getVMINodeName } from '../../selectors/vmi';
 import { VirtualMachineInstanceModel, VirtualMachineModel } from '../../models';
 import { asVMILikeWrapper } from '../../k8s/wrapper/utils/convert';
 
 import './vm-resource.scss';
+import { getVMTemplate } from '../../selectors/vm-template/selectors';
 
 export const VMDetailsItem: React.FC<VMDetailsItemProps> = ({
   title,
@@ -58,12 +58,13 @@ export const VMResourceSummary: React.FC<VMResourceSummaryProps> = ({
   vm,
   vmi,
   canUpdateVM,
+  templates,
   kindObj,
 }) => {
   const isVM = kindObj === VirtualMachineModel;
   const vmiLike = isVM ? vm : vmi;
 
-  const templateNamespacedName = getVMTemplateNamespacedName(vm);
+  const template = getVMTemplate(vm, templates);
   const id = getBasicID(vmiLike);
   const description = getDescription(vmiLike);
   const os = getOperatingSystemName(vmiLike) || getOperatingSystem(vmiLike);
@@ -89,12 +90,10 @@ export const VMResourceSummary: React.FC<VMResourceSummaryProps> = ({
       </VMDetailsItem>
 
       {isVM && (
-        <VMDetailsItem
-          title="Template"
-          idValue={prefixedID(id, 'template')}
-          isNotAvail={!templateNamespacedName}
-        >
-          {templateNamespacedName && <VMTemplateLink {...templateNamespacedName} />}
+        <VMDetailsItem title="Template" idValue={prefixedID(id, 'template')} isNotAvail={!template}>
+          {template && (
+            <VMTemplateLink name={getName(template)} namespace={getNamespace(template)} />
+          )}
         </VMDetailsItem>
       )}
     </ResourceSummary>
@@ -110,9 +109,6 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
   kindObj,
 }) => {
   const [isBootOrderModalOpen, setBootOrderModalOpen] = React.useState<boolean>(false);
-  const [isDedicatedResourcesModalOpen, setDedicatedResourcesModalOpen] = React.useState<boolean>(
-    false,
-  );
   const isVM = kindObj === VirtualMachineModel;
   const vmiLike = isVM ? vm : vmi;
   const vmiLikeWrapper = asVMILikeWrapper(vmiLike);
@@ -121,19 +117,13 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
 
   const [isStatusModalOpen, setStatusModalOpen] = React.useState<boolean>(false);
 
-  const launcherPod = findVMPod(vmiLike, pods);
+  const launcherPod = findVMIPod(vmi, pods);
   const id = getBasicID(vmiLike);
   const cds = vmiLikeWrapper?.getCDROMs() || [];
   const devices = vmiLikeWrapper?.getLabeledDevices() || [];
-  const nodeName = getNodeName(launcherPod);
+  const nodeName = getVMINodeName(vmi) || getNodeName(launcherPod);
   const ipAddrs = getVmiIpAddresses(vmi).join(', ');
   const workloadProfile = vmiLikeWrapper?.getWorkloadProfile();
-  const flavorText = getFlavorText({
-    memory: vmiLikeWrapper?.getMemory(),
-    cpu: vmiLikeWrapper?.getCPU(),
-    flavor: vmiLikeWrapper?.getFlavor(),
-  });
-  const isCPUPinned = vmiLikeWrapper?.isDedicatedCPUPlacement();
 
   return (
     <dl className="co-m-pane__details">
@@ -192,22 +182,58 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
         {launcherPod && ipAddrs}
       </VMDetailsItem>
 
-      <VMDetailsItem title="Node" idValue={prefixedID(id, 'node')} isNotAvail={!nodeName}>
-        {nodeName && <NodeLink name={nodeName} />}
+      <VMDetailsItem
+        title="Node"
+        idValue={prefixedID(id, 'node')}
+        isNotAvail={!launcherPod || !nodeName}
+      >
+        {launcherPod && nodeName && <NodeLink name={nodeName} />}
       </VMDetailsItem>
 
-      <VMDetailsItem title="Flavor" idValue={prefixedID(id, 'flavor')} isNotAvail={!flavorText}>
-        {canEdit ? (
-          <EditButton
-            id={prefixedID(id, 'flavor-edit')}
-            canEdit={canEdit}
-            onClick={() => vmFlavorModal({ vmLike: vm, blocking: true })}
-          >
-            {flavorText}
-          </EditButton>
-        ) : (
-          <>{flavorText}</>
-        )}
+      <VMDetailsItem
+        title="Workload Profile"
+        idValue={prefixedID(id, 'workload-profile')}
+        isNotAvail={!workloadProfile}
+      >
+        {workloadProfile}
+      </VMDetailsItem>
+    </dl>
+  );
+};
+
+export const VMSchedulingList: React.FC<VMSchedulingListProps> = ({
+  vm,
+  vmi,
+  canUpdateVM,
+  kindObj,
+}) => {
+  const isVM = kindObj === VirtualMachineModel;
+  const vmiLike = isVM ? vm : vmi;
+  const vmiLikeWrapper = asVMILikeWrapper(vmiLike);
+  const canEdit = vmiLike && canUpdateVM && kindObj !== VirtualMachineInstanceModel;
+
+  const [isDedicatedResourcesModalOpen, setDedicatedResourcesModalOpen] = React.useState<boolean>(
+    false,
+  );
+  const id = getBasicID(vmiLike);
+  const flavorText = getFlavorText({
+    memory: vmiLikeWrapper?.getMemory(),
+    cpu: vmiLikeWrapper?.getCPU(),
+    flavor: vmiLikeWrapper?.getFlavor(),
+  });
+  const isCPUPinned = vmiLikeWrapper?.isDedicatedCPUPlacement();
+
+  return (
+    <dl className="co-m-pane__details">
+      <VMDetailsItem
+        title="Flavor"
+        idValue={prefixedID(id, 'flavor')}
+        canEdit={canEdit}
+        onEditClick={() => vmFlavorModal({ vmLike: vm, blocking: true })}
+        editButtonId={prefixedID(id, 'flavor-edit')}
+        isNotAvail={!flavorText}
+      >
+        {flavorText}
       </VMDetailsItem>
 
       <VMDetailsItem
@@ -223,14 +249,6 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
           setOpen={setDedicatedResourcesModalOpen}
         />
         {isCPUPinned ? RESOURCE_PINNED : RESOURCE_NOT_PINNED}
-      </VMDetailsItem>
-
-      <VMDetailsItem
-        title="Workload Profile"
-        idValue={prefixedID(id, 'workload-profile')}
-        isNotAvail={!workloadProfile}
-      >
-        {workloadProfile}
       </VMDetailsItem>
     </dl>
   );
@@ -251,6 +269,7 @@ type VMResourceSummaryProps = {
   kindObj: K8sKind;
   vm?: VMKind;
   vmi?: VMIKind;
+  templates: TemplateKind[];
   canUpdateVM: boolean;
 };
 
@@ -259,6 +278,13 @@ type VMResourceListProps = {
   vm?: VMKind;
   pods?: PodKind[];
   migrations?: any[];
+  vmi?: VMIKind;
+  canUpdateVM: boolean;
+};
+
+type VMSchedulingListProps = {
+  kindObj: K8sKind;
+  vm?: VMKind;
   vmi?: VMIKind;
   canUpdateVM: boolean;
 };

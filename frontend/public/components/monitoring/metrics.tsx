@@ -36,16 +36,16 @@ import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import { connect } from 'react-redux';
 
+import { withFallback } from '@console/shared/src/components/error/error-boundary';
 import {
   RedExclamationCircleIcon,
   TechPreviewBadge,
   YellowExclamationTriangleIcon,
 } from '@console/shared';
 import * as UIActions from '../../actions/ui';
-import { connectToURLs, MonitoringRoutes } from '../../reducers/monitoring';
 import { RootState } from '../../redux';
 import { fuzzyCaseInsensitive } from '../factory/table-filters';
-import { PROMETHEUS_BASE_PATH } from '../graphs';
+import { PrometheusData, PrometheusLabels, PROMETHEUS_BASE_PATH } from '../graphs';
 import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
 import { getPrometheusExpressionBrowserURL } from '../graphs/prometheus-graph';
 import {
@@ -58,9 +58,8 @@ import {
   usePoll,
   useSafeFetch,
 } from '../utils';
-import { withFallback } from '../utils/error-boundary';
 import { setAllQueryArguments } from '../utils/router';
-import { colors, Error, Labels, QueryObj, QueryBrowser } from './query-browser';
+import { colors, Error, QueryObj, QueryBrowser } from './query-browser';
 
 const aggregationOperators = [
   'avg()',
@@ -171,13 +170,16 @@ const MetricsActionsMenu = connect(
   },
 )(MetricsActionsMenu_);
 
-const headerPrometheusLinkStateToProps = ({ UI }: RootState, { urls }) => {
+const headerPrometheusLinkStateToProps = ({ UI }: RootState) => {
   const liveQueries = UI.getIn(['queryBrowser', 'queries']).filter(
     (q) => q.get('isEnabled') && q.get('query'),
   );
   const queryStrings = _.map(liveQueries.toJS(), 'query');
+  const url = window.SERVER_FLAGS.prometheusPublicURL;
   return {
-    url: getPrometheusExpressionBrowserURL(urls, queryStrings) || urls[MonitoringRoutes.Prometheus],
+    url:
+      getPrometheusExpressionBrowserURL(url, queryStrings) ||
+      window.SERVER_FLAGS.prometheusPublicURL,
   };
 };
 
@@ -188,9 +190,7 @@ const HeaderPrometheusLink_ = ({ url }) => {
     </span>
   ) : null;
 };
-const HeaderPrometheusLink = connectToURLs(MonitoringRoutes.Prometheus)(
-  connect(headerPrometheusLinkStateToProps)(HeaderPrometheusLink_),
-);
+const HeaderPrometheusLink = connect(headerPrometheusLinkStateToProps)(HeaderPrometheusLink_);
 
 export const graphStateToProps = ({ UI }: RootState) => ({
   hideGraphs: !!UI.getIn(['monitoring', 'hideGraphs']),
@@ -219,7 +219,7 @@ const MetricsDropdown_: React.FC<MetricsDropdownProps> = ({
   namespace,
   setMetrics,
 }) => {
-  const [items, setItems] = React.useState();
+  const [items, setItems] = React.useState<MetricsDropdownItems>();
   const [isError, setIsError] = React.useState(false);
 
   const safeFetch = React.useCallback(useSafeFetch(), []);
@@ -602,11 +602,11 @@ const QueryTable_: React.FC<QueryTableProps> = ({
   query,
   series,
 }) => {
-  const [data, setData] = React.useState();
+  const [data, setData] = React.useState<PrometheusData>();
   const [error, setError] = React.useState();
   const [page, setPage] = React.useState(1);
   const [perPage, setPerPage] = React.useState(50);
-  const [sortBy, setSortBy] = React.useState<ISortBy>({ index: 1, direction: 'asc' });
+  const [sortBy, setSortBy] = React.useState<ISortBy>();
 
   const safeFetch = React.useCallback(useSafeFetch(), []);
 
@@ -632,6 +632,7 @@ const QueryTable_: React.FC<QueryTableProps> = ({
     setData(undefined);
     setError(undefined);
     setPage(1);
+    setSortBy(undefined);
   }, [namespace, query]);
 
   if (!isEnabled || !isExpanded || !query) {
@@ -722,17 +723,19 @@ const QueryTable_: React.FC<QueryTableProps> = ({
       ];
     }
 
-    // Sort Values column numerically and sort all the other columns alphabetically
-    const valuesColIndex = allLabelKeys.length + 1;
-    const sort =
-      sortBy.index === valuesColIndex
-        ? (cells) => {
-            const v = Number(cells[valuesColIndex]);
-            return Number.isNaN(v) ? 0 : v;
-          }
-        : sortBy.index;
-    const unsortedRows = _.map(result, rowMapper);
-    rows = _.orderBy(unsortedRows, [sort], [sortBy.direction]) as string[][];
+    rows = _.map(result, rowMapper);
+    if (sortBy) {
+      // Sort Values column numerically and sort all the other columns alphabetically
+      const valuesColIndex = allLabelKeys.length + 1;
+      const sort =
+        sortBy.index === valuesColIndex
+          ? (cells) => {
+              const v = Number(cells[valuesColIndex]);
+              return Number.isNaN(v) ? 0 : v;
+            }
+          : `${sortBy.index}`;
+      rows = _.orderBy(rows, [sort], [sortBy.direction]);
+    }
   }
 
   // Set the result table's break point based on the number of columns
@@ -1021,6 +1024,10 @@ type MetricsActionsMenuProps = {
   setAllExpanded: (isExpanded: boolean) => never;
 };
 
+type MetricsDropdownItems = {
+  [key: string]: string;
+};
+
 type MetricsDropdownProps = {
   insertText: (index: number, newText: string, replaceFrom: number, replaceTo: number) => never;
   namespace?: string;
@@ -1051,7 +1058,7 @@ type QueryKebabProps = {
   isDisabledSeriesEmpty: boolean;
   isEnabled: boolean;
   patchQuery: (patch: QueryObj) => void;
-  series: Labels[];
+  series: PrometheusLabels[];
   toggleIsEnabled: () => never;
 };
 
@@ -1071,7 +1078,7 @@ type QueryTableProps = {
   isExpanded: boolean;
   namespace?: string;
   query: string;
-  series: Labels[];
+  series: PrometheusLabels[];
 };
 
 type SeriesButtonProps = {

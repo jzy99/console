@@ -2,9 +2,9 @@ import * as React from 'react';
 import { match as RouterMatch } from 'react-router-dom';
 import { shallow, ShallowWrapper } from 'enzyme';
 import * as _ from 'lodash';
+import * as k8sModels from '@console/internal/module/k8s';
 import { Table, DetailsPage, MultiListPage, ListPage } from '@console/internal/components/factory';
 import { Timestamp, LabelList, StatusBox, ResourceKebab } from '@console/internal/components/utils';
-import { referenceFor, referenceForModel, K8sResourceKind } from '@console/internal/module/k8s';
 import {
   testCRD,
   testResourceInstance,
@@ -14,6 +14,7 @@ import {
 } from '../../mocks';
 import { ClusterServiceVersionModel } from '../models';
 import {
+  OperandList_,
   OperandList,
   OperandListProps,
   ProvidedAPIsPage,
@@ -37,6 +38,14 @@ import { StatusDescriptor } from './descriptors/status';
 import { SpecDescriptor } from './descriptors/spec';
 import { referenceForProvidedAPI, OperandLink } from '.';
 
+const COLUMNS = OperandTableHeader();
+const NAME_INDEX = _.findIndex(COLUMNS, { title: 'Name' });
+const KIND_INDEX = _.findIndex(COLUMNS, { title: 'Kind' });
+const STATUS_INDEX = _.findIndex(COLUMNS, { title: 'Status' });
+const VERSION_INDEX = _.findIndex(COLUMNS, { title: 'Version' });
+const LABELS_INDEX = _.findIndex(COLUMNS, { title: 'Labels' });
+const LAST_UPDATED_INDEX = _.findIndex(COLUMNS, { title: 'Last Updated' });
+
 describe(OperandTableHeader.displayName, () => {
   it('returns column header definition for resource', () => {
     expect(Array.isArray(OperandTableHeader())).toBe(true);
@@ -47,11 +56,13 @@ describe(OperandTableRow.displayName, () => {
   let wrapper: ShallowWrapper<OperandTableRowProps>;
 
   beforeEach(() => {
-    wrapper = shallow(<OperandTableRow obj={testResourceInstance} index={0} style={{}} />);
+    wrapper = shallow(
+      <OperandTableRow obj={testResourceInstance} index={0} style={{}} flags={{}} />,
+    );
   });
 
   it('renders column for resource name', () => {
-    const col = wrapper.childAt(0);
+    const col = wrapper.childAt(NAME_INDEX);
     const link = col.find(OperandLink);
 
     expect(link.props().obj).toEqual(testResourceInstance);
@@ -66,12 +77,12 @@ describe(OperandTableRow.displayName, () => {
     expect(kebab.props().actions[1](testModel, testOwnedResourceInstance).label).toEqual(
       `Delete ${testModel.label}`,
     );
-    expect(kebab.props().kind).toEqual(referenceFor(testResourceInstance));
+    expect(kebab.props().kind).toEqual(k8sModels.referenceFor(testResourceInstance));
     expect(kebab.props().resource).toEqual(testResourceInstance);
   });
 
   it('renders column for resource labels', () => {
-    const col = wrapper.childAt(1);
+    const col = wrapper.childAt(LABELS_INDEX);
     const labelList = col.find(LabelList);
 
     expect(labelList.props().kind).toEqual(testResourceInstance.kind);
@@ -79,13 +90,13 @@ describe(OperandTableRow.displayName, () => {
   });
 
   it('renders column for resource type', () => {
-    const col = wrapper.childAt(2);
+    const col = wrapper.childAt(KIND_INDEX);
 
     expect(col.shallow().text()).toEqual(testResourceInstance.kind);
   });
 
   it('renders column for resource status', () => {
-    const col = wrapper.childAt(3);
+    const col = wrapper.childAt(STATUS_INDEX);
 
     expect(col.find(OperandStatusIconAndText).props().statusObject).toEqual(
       testResourceInstance.status,
@@ -96,32 +107,33 @@ describe(OperandTableRow.displayName, () => {
     const obj = _.cloneDeep(testResourceInstance);
     obj.status = null;
     wrapper.setProps({ obj });
-    const col = wrapper.childAt(3);
+    const col = wrapper.childAt(STATUS_INDEX);
 
     expect(col.find(OperandStatusIconAndText).props().statusObject).toEqual(null);
   });
 
   it('renders column for resource version', () => {
-    const col = wrapper.childAt(4);
+    const col = wrapper.childAt(VERSION_INDEX);
 
     expect(col.shallow().text()).toEqual(testResourceInstance.spec.version || 'Unknown');
   });
 
   it('renders column for last updated timestamp', () => {
-    const col = wrapper.childAt(5);
+    const col = wrapper.childAt(LAST_UPDATED_INDEX);
     const timestamp = col.find(Timestamp);
 
     expect(timestamp.props().timestamp).toEqual(testResourceInstance.metadata.creationTimestamp);
   });
 });
 
-describe(OperandList.displayName, () => {
+describe(OperandList_.displayName, () => {
   let wrapper: ShallowWrapper<OperandListProps>;
-  let resources: K8sResourceKind[];
+  let resources: k8sModels.K8sResourceKind[];
 
   beforeEach(() => {
     resources = [testResourceInstance];
-    wrapper = shallow(<OperandList loaded data={resources} filters={{}} />);
+    // eslint-disable-next-line react/jsx-pascal-case
+    wrapper = shallow(<OperandList_ loaded data={resources} filters={{}} flags={{}} />);
   });
 
   it('renders a `Table` of the custom resource instances of the given kind', () => {
@@ -133,7 +145,7 @@ describe(OperandList.displayName, () => {
       ),
     ).toBe(true);
     expect(table.props().Header).toEqual(OperandTableHeader);
-    expect(table.props().Row).toEqual(OperandTableRow);
+    expect(_.isFunction(table.props().Row)).toBe(true);
   });
 });
 
@@ -158,7 +170,7 @@ describe(OperandDetails.displayName, () => {
 
   it('renders description title', () => {
     const title = wrapper.find('.co-section-heading');
-    expect(title.text()).toEqual('Test Resource Details');
+    expect(title.text()).toEqual('Test Resource Overview');
   });
 
   it('renders info section', () => {
@@ -214,7 +226,7 @@ describe('ResourcesList', () => {
     match = {
       params: {
         appName: 'etcd',
-        plural: referenceFor(testResourceInstance),
+        plural: k8sModels.referenceFor(testResourceInstance),
         name: 'my-etcd',
         ns: 'default',
       },
@@ -235,7 +247,7 @@ describe('ResourcesList', () => {
 
     expect(resourceComponent.props().resources).toEqual(
       testClusterServiceVersion.spec.customresourcedefinitions.owned[0].resources.map(
-        (resource) => ({ kind: resource.kind, namespaced: true }),
+        (resource) => ({ kind: resource.kind, namespaced: true, prop: 'Pod' }),
       ),
     );
   });
@@ -262,8 +274,9 @@ describe(OperandDetailsPage.displayName, () => {
 
     wrapper = shallow(
       <OperandDetailsPage.WrappedComponent
-        modelRef={referenceFor(testResourceInstance)}
+        modelRef={k8sModels.referenceFor(testResourceInstance)}
         match={match}
+        flags={{}}
       />,
     );
   });
@@ -282,7 +295,7 @@ describe(OperandDetailsPage.displayName, () => {
   it('renders a `DetailsPage` which also watches the parent CSV', () => {
     expect(wrapper.find(DetailsPage).props().resources).toEqual([
       {
-        kind: referenceForModel(ClusterServiceVersionModel),
+        kind: k8sModels.referenceForModel(ClusterServiceVersionModel),
         name: match.params.appName,
         namespace: match.params.ns,
         isList: false,
@@ -391,6 +404,11 @@ describe(OperandDetailsPage.displayName, () => {
 describe(ProvidedAPIsPage.displayName, () => {
   let wrapper: ShallowWrapper<ProvidedAPIsPageProps>;
 
+  beforeAll(() => {
+    // Since crd models have not been loaded into redux state, just force return of the correct model type
+    spyOn(k8sModels, 'modelFor').and.returnValue(testModel);
+  });
+
   beforeEach(() => {
     wrapper = shallow(<ProvidedAPIsPage.WrappedComponent obj={testClusterServiceVersion} />);
   });
@@ -487,7 +505,7 @@ describe(ProvidedAPIPage.displayName, () => {
     wrapper = shallow(
       <ProvidedAPIPage.WrappedComponent
         kindObj={readonlyModel}
-        kind={referenceForModel(readonlyModel)}
+        kind={k8sModels.referenceForModel(readonlyModel)}
         csv={testClusterServiceVersion}
       />,
     );

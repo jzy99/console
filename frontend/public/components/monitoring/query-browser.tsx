@@ -27,10 +27,12 @@ import {
 } from '@patternfly/react-core';
 import { ChartLineIcon } from '@patternfly/react-icons';
 import { connect } from 'react-redux';
+import { APIError } from '@console/shared';
+import { withFallback } from '@console/shared/src/components/error/error-boundary';
 
 import * as UIActions from '../../actions/ui';
 import { RootState } from '../../redux';
-import { PrometheusResponse } from '../graphs';
+import { PrometheusLabels, PrometheusResponse, PrometheusResult, PrometheusValue } from '../graphs';
 import { GraphEmpty } from '../graphs/graph-empty';
 import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
 import { queryBrowserTheme } from '../graphs/themes';
@@ -48,7 +50,6 @@ import {
   twentyFourHourTime,
   twentyFourHourTimeWithSeconds,
 } from '../utils/datetime';
-import { withFallback } from '../utils/error-boundary';
 
 // Prometheus internal labels start with "__"
 const isInternalLabel = (key: string): boolean => _.startsWith(key, '__');
@@ -241,7 +242,15 @@ const Graph: React.FC<GraphProps> = React.memo(
 
     let yTickFormat = formatValue;
 
-    if (!isStack) {
+    if (isStack) {
+      // Specify Y axis range if all values are zero, but otherwise let Chart set it automatically
+      const isAllZero = _.every(allSeries, (series) =>
+        _.every(series, ([, values]) => _.every(values, { y: 0 })),
+      );
+      if (isAllZero) {
+        domain.y = [-1, 1];
+      }
+    } else {
       // Set a reasonable Y-axis range based on the min and max values in the data
       const findMin = (series: GraphDataPoint[]) => _.minBy(series, 'y');
       const findMax = (series: GraphDataPoint[]) => _.maxBy(series, 'y');
@@ -265,6 +274,18 @@ const Graph: React.FC<GraphProps> = React.memo(
 
     const xTickFormat = span < 5 * 60 * 1000 ? twentyFourHourTimeWithSeconds : twentyFourHourTime;
 
+    let xAxisStyle;
+    if (width < 225) {
+      xAxisStyle = {
+        tickLabels: {
+          angle: 45,
+          fontSize: 10,
+          textAnchor: 'start',
+          verticalAnchor: 'middle',
+        },
+      };
+    }
+
     const legendData = formatLegendLabel
       ? _.flatMap(allSeries, (series, i) =>
           _.map(series, (s) => ({ name: formatLegendLabel(s[0], i) })),
@@ -283,7 +304,7 @@ const Graph: React.FC<GraphProps> = React.memo(
             theme={chartTheme}
             width={width}
           >
-            <ChartAxis tickCount={5} tickFormat={xTickFormat} />
+            <ChartAxis style={xAxisStyle} tickCount={5} tickFormat={xTickFormat} />
             <ChartAxis crossAxis={false} dependentAxis tickCount={6} tickFormat={yTickFormat} />
             {isStack ? (
               <ChartStack>
@@ -355,6 +376,9 @@ const maxDataPointsHard = 10000;
 // Min and max number of data samples per data series
 const minSamples = 10;
 const maxSamples = 300;
+
+// Fall back to a line chart for performance if there are too many series
+const maxStacks = 20;
 
 // We don't want to refresh all the graph data for just a small adjustment in the number of samples,
 // so don't update unless the number of samples would change by at least this proportion
@@ -474,16 +498,18 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   const maxSamplesForSpan =
     defaultSamples || _.clamp(Math.round(span / minStep), minSamples, maxSamples);
 
-  const [xDomain, setXDomain] = React.useState();
-  const [error, setError] = React.useState();
+  const [xDomain, setXDomain] = React.useState<AxisDomain>();
+  const [error, setError] = React.useState<QueryBrowserError>();
   const [isDatasetTooBig, setIsDatasetTooBig] = React.useState(false);
-  const [graphData, setGraphData] = React.useState();
+  const [graphData, setGraphData] = React.useState(null);
   const [samples, setSamples] = React.useState(maxSamplesForSpan);
   const [updating, setUpdating] = React.useState(true);
 
   const endTime = _.get(xDomain, '[1]');
 
   const safeFetch = useSafeFetch();
+
+  const stack = isStack && _.sumBy(graphData, 'length') <= maxStacks;
 
   // If provided, `timespan` overrides any existing span setting
   React.useEffect(() => {
@@ -492,13 +518,16 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
     }
   }, [timespan]);
 
+  // Define this once for all queries so that they have exactly the same time range and X values
+  const now = Date.now();
+
   const safeFetchQuery = (query: string) => {
     if (_.isEmpty(query)) {
       return Promise.resolve();
     }
     const url = getPrometheusURL({
       endpoint: PrometheusEndpoint.QUERY_RANGE,
-      endTime,
+      endTime: endTime || now,
       namespace,
       query,
       samples,
@@ -538,7 +567,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
             ) {
               setSamples(newSamples);
             } else {
-              const newGraphData = _.map(newResults, (result) => {
+              const newGraphData = _.map(newResults, (result: PrometheusResult[]) => {
                 return _.map(result, ({ metric, values }) => {
                   // If filterLabels is specified, ignore all series that don't match
                   return filterLabels &&
@@ -653,7 +682,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
                 allSeries={graphData}
                 disabledSeries={disabledSeries}
                 formatLegendLabel={formatLegendLabel}
-                isStack={isStack}
+                isStack={stack}
                 span={span}
                 xDomain={xDomain}
               />
@@ -662,7 +691,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
                 allSeries={graphData}
                 disabledSeries={disabledSeries}
                 formatLegendLabel={formatLegendLabel}
-                isStack={isStack}
+                isStack={stack}
                 onZoom={onZoom}
                 span={span}
                 xDomain={xDomain}
@@ -687,27 +716,29 @@ type GraphDataPoint = {
   y: number;
 };
 
-export type Labels = { [key: string]: string };
-
-type Series = [Labels, GraphDataPoint[][]];
+type Series = [PrometheusLabels, GraphDataPoint[][]];
 
 export type QueryObj = {
-  disabledSeries?: Labels[];
+  disabledSeries?: PrometheusLabels[];
   isEnabled?: boolean;
   isExpanded?: boolean;
   query?: string;
-  series?: Labels[];
+  series?: PrometheusLabels[];
   text?: string;
 };
 
-type PrometheusValue = [number, string];
-
-export type FormatLegendLabel = (labels: Labels, i: number) => string;
+export type FormatLegendLabel = (labels: PrometheusLabels, i: number) => string;
 
 export type PatchQuery = (index: number, patch: QueryObj) => any;
 
+type QueryBrowserError = {
+  json?: {
+    error?: string;
+  };
+} & APIError;
+
 type ErrorProps = {
-  error: any;
+  error: QueryBrowserError;
   title?: string;
 };
 
@@ -718,7 +749,7 @@ type GraphEmptyStateProps = {
 
 type GraphProps = {
   allSeries: Series[][];
-  disabledSeries?: Labels[][];
+  disabledSeries?: PrometheusLabels[][];
   formatLegendLabel?: FormatLegendLabel;
   isStack?: boolean;
   span: number;
@@ -727,7 +758,7 @@ type GraphProps = {
 
 type ZoomableGraphProps = {
   allSeries: Series[][];
-  disabledSeries?: Labels[][];
+  disabledSeries?: PrometheusLabels[][];
   formatLegendLabel?: FormatLegendLabel;
   isStack?: boolean;
   onZoom: (from: number, to: number) => void;
@@ -738,8 +769,8 @@ type ZoomableGraphProps = {
 export type QueryBrowserProps = {
   defaultSamples?: number;
   defaultTimespan?: number;
-  disabledSeries?: Labels[][];
-  filterLabels?: Labels;
+  disabledSeries?: PrometheusLabels[][];
+  filterLabels?: PrometheusLabels;
   formatLegendLabel?: FormatLegendLabel;
   GraphLink?: React.ComponentType<{}>;
   hideControls?: boolean;
@@ -762,7 +793,7 @@ type TooltipDatum = { _stack: number; x: Date; y: number };
 
 type TooltipInnerProps = {
   datum: TooltipDatum;
-  labels?: Labels;
+  labels?: PrometheusLabels;
   query?: string;
   seriesIndex: number;
   x: number;
