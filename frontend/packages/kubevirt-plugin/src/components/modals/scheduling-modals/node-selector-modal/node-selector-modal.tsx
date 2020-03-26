@@ -12,16 +12,19 @@ import { NodeModel } from '@console/internal/models';
 import { isLoaded, getLoadedData, getLoadError } from '../../../../utils';
 import { ModalFooter } from '../../modal/modal-footer';
 import { VMLikeEntityKind } from '../../../../types/vmLike';
-import { getVMLikeModel, getNodeSelector } from '../../../../selectors/vm';
+import { getVMLikeModel } from '../../../../selectors/vm';
+import { getVMLikeNodeSelector } from '../../../../selectors/vm-like/selectors';
 import { getNodeSelectorPatches } from '../../../../k8s/patches/vm/vm-scheduling-patches';
 import { NodeChecker } from '../shared/NodeChecker/node-checker';
 import { useNodeQualifier } from '../shared/hooks';
 import { LabelsList } from '../../../LabelsList/labels-list';
+import { LabelRow } from '../../../LabelsList/LabelRow/label-row';
 import { NODE_SELECTOR_MODAL_TITLE } from '../shared/consts';
 import { nodeSelectorToIDLabels } from './helpers';
 import { useIDEntities } from '../../../../hooks/use-id-entities';
 import { IDLabel } from '../../../LabelsList/types';
 import { useCollisionChecker } from '../../../../hooks/use-collision-checker';
+import { NodeSelectorHeader } from './node-selector-header';
 
 export const NSModal = withHandlePromise(
   ({
@@ -42,21 +45,20 @@ export const NSModal = withHandlePromise(
       onLabelAdd,
       onLabelChange,
       onLabelDelete,
-    ] = useIDEntities<IDLabel>(nodeSelectorToIDLabels(getNodeSelector(vmLikeEntity)));
+    ] = useIDEntities<IDLabel>(nodeSelectorToIDLabels(getVMLikeNodeSelector(vmLikeEntity)));
 
     const qualifiedNodes = useNodeQualifier(selectorLabels, nodes);
-
     const [showCollisionAlert, reload] = useCollisionChecker<VMLikeEntityKind>(
       vmLikeFinal,
       (oldVM: VMLikeEntityKind, newVM: VMLikeEntityKind) =>
-        _.isEqual(getNodeSelector(oldVM), getNodeSelector(newVM)),
+        _.isEqual(getVMLikeNodeSelector(oldVM), getVMLikeNodeSelector(newVM)),
     );
 
     const onSelectorLabelAdd = () => onLabelAdd({ id: null, key: '', value: '' } as IDLabel);
 
     const onReload = () => {
       reload();
-      setSelectorLabels(nodeSelectorToIDLabels(getNodeSelector(vmLikeFinal)));
+      setSelectorLabels(nodeSelectorToIDLabels(getVMLikeNodeSelector(vmLikeFinal)));
     };
 
     const onSubmit = async () => {
@@ -65,7 +67,7 @@ export const NSModal = withHandlePromise(
         return acc;
       }, {});
 
-      if (!_.isEqual(getNodeSelector(vmLikeFinal), k8sSelector)) {
+      if (!_.isEqual(getVMLikeNodeSelector(vmLikeFinal), k8sSelector)) {
         // eslint-disable-next-line promise/catch-or-return
         handlePromise(
           k8sPatch(
@@ -84,13 +86,24 @@ export const NSModal = withHandlePromise(
         <ModalTitle>{NODE_SELECTOR_MODAL_TITLE}</ModalTitle>
         <ModalBody>
           <LabelsList
+            isEmpty={selectorLabels.length === 0}
             kind="Node"
-            labels={selectorLabels}
             onLabelAdd={onSelectorLabelAdd}
-            onLabelChange={onLabelChange}
-            onLabelDelete={onLabelDelete}
-            emptyStateAddRowText="Add Label to specify qualifying nodes"
-          />
+          >
+            {selectorLabels.length > 0 && (
+              <>
+                <NodeSelectorHeader key="label-title-row" />
+                {selectorLabels.map((label) => (
+                  <LabelRow
+                    key={label.id}
+                    label={label}
+                    onChange={onLabelChange}
+                    onDelete={onLabelDelete}
+                  />
+                ))}
+              </>
+            )}
+          </LabelsList>
           <NodeChecker qualifiedNodes={qualifiedNodes} />
         </ModalBody>
         <ModalFooter
