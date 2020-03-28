@@ -97,6 +97,78 @@ export const sampleKnativeDeployments: FirehoseResult<DeploymentKind[]> = {
   ],
 };
 
+export const sampleEventSourceDeployments: FirehoseResult<DeploymentKind[]> = {
+  loaded: true,
+  loadError: '',
+  data: [
+    {
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      metadata: {
+        annotations: {
+          'deployment.kubernetes.io/revision': '1',
+        },
+        selfLink:
+          '/apis/apps/v1/namespaces/testproject1/deployments/apiserversource-testevents-88eb61d1-b52e-4836-829c-6821e346ecf6',
+        resourceVersion: '726179',
+        name: 'apiserversource-testevents-88eb61d1-b52e-4836-829c-6821e346ecf6',
+        uid: 'bccad3e4-8ce0-11e9-bb7b-0ebb55b110b8',
+        creationTimestamp: '2019-04-22T11:35:43Z',
+        generation: 2,
+        namespace: 'testproject1',
+        labels: {
+          'eventing.knative.dev/source': 'apiserver-source-controller',
+          'eventing.knative.dev/sourceName': 'testevents',
+        },
+        ownerReferences: [
+          {
+            apiVersion: `${EventSourceApiServerModel.apiGroup}/${EventSourceApiServerModel.apiVersion}`,
+            kind: EventSourceApiServerModel.kind,
+            name: 'testevents',
+            uid: '1317f615-9636-11e9-b134-06a61d886b689',
+            controller: true,
+            blockOwnerDeletion: true,
+          },
+        ],
+      },
+      spec: {
+        replicas: 0,
+        selector: {
+          matchLabels: {
+            'eventing.knative.dev/source': 'apiserver-source-controller',
+            'eventing.knative.dev/sourceName': 'testevents',
+          },
+        },
+        template: {
+          metadata: {
+            creationTimestamp: null,
+            labels: {
+              'eventing.knative.dev/source': 'apiserver-source-controller',
+              'eventing.knative.dev/sourceName': 'testevents',
+            },
+            annotations: {
+              'sidecar.istio.io/inject': 'false',
+            },
+          },
+          spec: {
+            containers: [],
+          },
+        },
+        strategy: {
+          type: 'RollingUpdate',
+          rollingUpdate: {
+            maxUnavailable: '25%',
+            maxSurge: '25%',
+          },
+        },
+        revisionHistoryLimit: 10,
+        progressDeadlineSeconds: 600,
+      },
+      status: {},
+    },
+  ],
+};
+
 export const sampleKnativeReplicaSets: FirehoseResult = {
   loaded: true,
   loadError: '',
@@ -449,7 +521,7 @@ export const sampleEventSourceContainers: FirehoseResult = {
       metadata: {
         name: 'overlayimage',
         namespace: 'testproject3',
-        uid: '1317f615-9636-11e9-b134-06a61d886b689',
+        uid: '1317f615-9636-11e9-b134-06a61d886b689_1',
         creationTimestamp: '2019-06-12T07:07:57Z',
       },
       spec: {
@@ -476,7 +548,7 @@ export const sampleEventSourceCamel: FirehoseResult = {
       metadata: {
         name: 'overlayimage',
         namespace: 'testproject3',
-        uid: '1317f615-9636-11e9-b134-06a61d886b689',
+        uid: '1317f615-9636-11e9-b134-06a61d886b689_2',
         creationTimestamp: '2019-06-12T07:07:57Z',
       },
       spec: {},
@@ -494,7 +566,7 @@ export const sampleEventSourceKafka: FirehoseResult = {
       metadata: {
         name: 'overlayimage',
         namespace: 'testproject3',
-        uid: '1317f615-9636-11e9-b134-06a61d886b689',
+        uid: '1317f615-9636-11e9-b134-06a61d886b689_3',
         creationTimestamp: '2019-06-12T07:07:57Z',
       },
       spec: {
@@ -518,7 +590,7 @@ export const sampleEventSourceSinkbinding: FirehoseResult = {
       metadata: {
         name: 'bind-wss',
         namespace: 'testproject3',
-        uid: '1317f615-9636-11e9-b134-06a61d886b689',
+        uid: '1317f615-9636-11e9-b134-06a61d886b689_4',
         creationTimestamp: '2019-06-12T07:07:57Z',
       },
       spec: {
