@@ -1,7 +1,14 @@
 import * as fuzzy from 'fuzzysearch';
 import * as _ from 'lodash';
 import { coFetchJSON } from '@console/internal/co-fetch';
-import { HelmRelease, HelmReleaseStatus, HelmChartMetaData } from './helm-types';
+import { K8sResourceKind } from '@console/internal/module/k8s';
+import {
+  HelmRelease,
+  HelmReleaseStatus,
+  HelmChartMetaData,
+  HelmActionType,
+  HelmActionConfigType,
+} from './helm-types';
 import { CustomResourceListRowFilter } from '../custom-resource-list/custom-resource-list-types';
 
 export const HelmReleaseStatusLabels = {
@@ -10,7 +17,13 @@ export const HelmReleaseStatusLabels = {
   [HelmReleaseStatus.Other]: 'Other',
 };
 
-export const otherStatuses = [
+export const SelectedReleaseStatuses = [
+  HelmReleaseStatus.Deployed,
+  HelmReleaseStatus.Failed,
+  HelmReleaseStatus.Other,
+];
+
+export const OtherReleaseStatuses = [
   'unknown',
   'uninstalled',
   'superseded',
@@ -21,40 +34,34 @@ export const otherStatuses = [
 ];
 
 export const releaseStatusReducer = (release: HelmRelease) => {
-  if (otherStatuses.includes(release.info.status)) {
+  if (OtherReleaseStatuses.includes(release.info.status)) {
     return HelmReleaseStatus.Other;
   }
   return release.info.status;
 };
 
-export const selectedStatuses = [
-  HelmReleaseStatus.Deployed,
-  HelmReleaseStatus.Failed,
-  HelmReleaseStatus.Other,
-];
-
-export const helmRowFilters: CustomResourceListRowFilter[] = [
+export const helmReleasesRowFilters: CustomResourceListRowFilter[] = [
   {
     type: 'helm-release-status',
-    selected: selectedStatuses,
+    selected: SelectedReleaseStatuses,
     reducer: releaseStatusReducer,
-    items: selectedStatuses.map((status) => ({
+    items: SelectedReleaseStatuses.map((status) => ({
       id: status,
       title: HelmReleaseStatusLabels[status],
     })),
   },
 ];
 
-export const getFilteredItemsByRow = (items: HelmRelease[], filter: string | string[]) => {
-  return items.filter((release: HelmRelease) => {
-    return otherStatuses.includes(release.info.status)
+export const filterHelmReleasesByStatus = (releases: HelmRelease[], filter: string | string[]) => {
+  return releases.filter((release: HelmRelease) => {
+    return OtherReleaseStatuses.includes(release.info.status)
       ? filter.includes(HelmReleaseStatus.Other)
       : filter.includes(release.info.status);
   });
 };
 
-export const getFilteredItemsByText = (items: HelmRelease[], filter: string) => {
-  return items.filter((release: HelmRelease) => fuzzy(filter, release.name));
+export const filterHelmReleasesByName = (releases: HelmRelease[], filter: string) => {
+  return releases.filter((release: HelmRelease) => fuzzy(filter, release.name));
 };
 
 export const fetchHelmReleases = (
@@ -66,6 +73,7 @@ export const fetchHelmReleases = (
   }`;
   return coFetchJSON(fetchString);
 };
+
 export const getChartURL = (helmChartData: HelmChartMetaData[], chartVersion: string): string => {
   const chartData: HelmChartMetaData = _.find(helmChartData, (obj) => obj.version === chartVersion);
   return chartData?.urls[0];
@@ -82,3 +90,39 @@ export const getChartVersions = (chartEntries: HelmChartMetaData[]) => {
   );
   return chartVersions;
 };
+
+export const getHelmActionConfig = (
+  helmAction: HelmActionType,
+  releaseName: string,
+  namespace: string,
+  chartURL: string,
+): HelmActionConfigType | undefined => {
+  switch (helmAction) {
+    case HelmActionType.Install:
+      return {
+        title: 'Install Helm Chart',
+        subTitle: 'The helm chart will be installed using the YAML shown in the editor below.',
+        helmReleaseApi: `/api/helm/chart?url=${chartURL}`,
+        fetch: coFetchJSON.post,
+        redirectURL: `/topology/ns/${namespace}`,
+      };
+    case HelmActionType.Upgrade:
+      return {
+        title: 'Upgrade Helm Release',
+        subTitle: '',
+        helmReleaseApi: `/api/helm/release?ns=${namespace}&release_name=${releaseName}`,
+        fetch: coFetchJSON.put,
+        redirectURL: `/helm-releases/ns/${namespace}`,
+      };
+    default:
+      return undefined;
+  }
+};
+
+export const flattenReleaseResources = (resources: { [kind: string]: { data: K8sResourceKind } }) =>
+  Object.keys(resources).reduce((acc, kind) => {
+    if (!_.isEmpty(resources[kind].data)) {
+      acc.push(resources[kind].data);
+    }
+    return acc;
+  }, []);

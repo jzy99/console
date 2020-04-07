@@ -62,7 +62,7 @@ interface ResourceDropdownProps {
   selectedKey: string;
   autoSelect?: boolean;
   resourceFilter?: (resource: K8sResourceKind) => boolean;
-  onChange?: (key: string, name?: string, isListEmpty?: boolean) => void;
+  onChange?: (key: string, name?: string | object, isListEmpty?: boolean) => void;
   onLoad?: (items: { [key: string]: string }) => void;
   showBadge?: boolean;
   autocompleteFilter?: (strText: string, item: object) => boolean;
@@ -147,7 +147,7 @@ class ResourceDropdown extends React.Component<ResourceDropdownProps, State> {
     updateSelection: boolean,
   ) => {
     const unsortedList = {};
-    _.each(resources, ({ data }) => {
+    _.each(resources, ({ data, kind }) => {
       _.reduce(
         data,
         (acc, resource) => {
@@ -159,12 +159,11 @@ class ResourceDropdown extends React.Component<ResourceDropdownProps, State> {
           }
           if (dataValue) {
             if (showBadge) {
-              acc[dataValue] = (
-                <DropdownItem
-                  key={resource.metadata.uid}
-                  model={modelFor(referenceFor(resource))}
-                  name={dataValue}
-                />
+              const model = modelFor(referenceFor(resource)) || (kind && modelFor(kind));
+              acc[dataValue] = model ? (
+                <DropdownItem key={resource.metadata.uid} model={model} name={dataValue} />
+              ) : (
+                dataValue
               );
             } else {
               acc[dataValue] = transformLabel ? transformLabel(resource) : dataValue;

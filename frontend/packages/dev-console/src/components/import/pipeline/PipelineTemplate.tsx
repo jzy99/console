@@ -91,7 +91,7 @@ const PipelineTemplate: React.FC<PipelineTemplateProps> = ({ builderImages }) =>
   }, [resources, image.selected, isDockerStrategy, setFieldValue]);
 
   if (noTemplateForRuntime) {
-    const builderImageTitle = builderImages[image.selected].title;
+    const builderImageTitle = builderImages?.[image.selected]?.title || 'this builder image';
     const resourceName = ReadableResourcesNames[resources];
     return (
       <Alert
@@ -110,12 +110,7 @@ const PipelineTemplate: React.FC<PipelineTemplateProps> = ({ builderImages }) =>
         isExpanded={isExpanded}
         onToggle={() => setIsExpanded(!isExpanded)}
       >
-        {isExpanded && (
-          <PipelineVisualization
-            pipeline={pipeline.template}
-            key={pipeline.template.metadata.name} // this is a hack because of an issue with PipelineVisualization component not rerending
-          />
-        )}
+        {isExpanded && <PipelineVisualization pipeline={pipeline.template} />}
       </Expandable>
     </>
   ) : (

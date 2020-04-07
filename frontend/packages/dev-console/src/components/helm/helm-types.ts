@@ -18,7 +18,7 @@ export interface HelmRelease {
 }
 
 export interface HelmChart {
-  files: object[];
+  files: { name: string; data: string }[];
   metadata: HelmChartMetaData;
   templates: object[];
   values: object;
@@ -66,6 +66,7 @@ export enum HelmActionType {
 
 export interface HelmActionConfigType {
   title: string;
+  subTitle: string;
   helmReleaseApi: string;
   fetch: (url: any, json: any, options?: {}) => Promise<any>;
   redirectURL: string;
