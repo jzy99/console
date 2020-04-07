@@ -52,6 +52,7 @@ const StartPipelineModal: React.FC<StartPipelineModalProps & ModalComponentProps
         ...workspace,
         type: 'EmptyDirectory',
       })) ?? [],
+    secretOpen: false,
   };
   initialValues.resources.map((resource: PipelineResource) =>
     _.merge(resource, { resourceRef: { name: '' } }),
