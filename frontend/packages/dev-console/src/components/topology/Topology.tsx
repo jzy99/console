@@ -19,10 +19,15 @@ import {
   Model,
   SELECTION_EVENT,
   SelectionEventListener,
+  GROUPS_LAYER,
+  TOP_LAYER,
+  BOTTOM_LAYER,
+  DEFAULT_LAYER,
 } from '@console/topology';
 import { RootState } from '@console/internal/redux';
 import { useAddToProjectAccess } from '../../utils/useAddToProjectAccess';
 import { getActiveApplication } from '@console/internal/reducers/ui';
+import { getEventSourceStatus } from '@console/knative-plugin/src/topology/knative-topology-utils';
 import KnativeComponentFactory from '@console/knative-plugin/src/topology/knativeComponentFactory';
 import TopologySideBar from './TopologySideBar';
 import {
@@ -51,6 +56,7 @@ interface StateProps {
   filters: TopologyFilters;
   application: string;
   serviceBinding: boolean;
+  eventSourceEnabled: boolean;
 }
 
 export interface TopologyProps extends StateProps {
@@ -63,6 +69,7 @@ const graphModel: Model = {
     id: 'g1',
     type: 'graph',
     layout: COLA_LAYOUT,
+    layers: [BOTTOM_LAYER, GROUPS_LAYER, 'groups2', DEFAULT_LAYER, TOP_LAYER],
   },
 };
 
@@ -72,6 +79,7 @@ const Topology: React.FC<TopologyProps> = ({
   application,
   namespace,
   serviceBinding,
+  eventSourceEnabled,
 }) => {
   const visRef = React.useRef<Visualization | null>(null);
   const applicationRef = React.useRef<string>(null);
@@ -126,10 +134,11 @@ const Topology: React.FC<TopologyProps> = ({
     const newGraphData: GraphData = {
       createResourceAccess,
       namespace,
+      eventSourceEnabled,
     };
     visRef.current.getGraph().setData(newGraphData);
     setGraphData(newGraphData);
-  }, [namespace, createResourceAccess]);
+  }, [namespace, createResourceAccess, eventSourceEnabled]);
 
   React.useEffect(() => {
     const newModel = topologyModelFromDataModel(data, application, filters);
@@ -315,6 +324,7 @@ const TopologyStateToProps = (state: RootState): StateProps => {
     filters: getTopologyFilters(state),
     application: getActiveApplication(state),
     serviceBinding: getServiceBindingStatus(state),
+    eventSourceEnabled: getEventSourceStatus(state),
   };
 };
 

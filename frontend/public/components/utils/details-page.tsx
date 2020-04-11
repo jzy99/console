@@ -3,16 +3,14 @@ import * as _ from 'lodash-es';
 import { Button } from '@patternfly/react-core';
 import { PencilAltIcon } from '@patternfly/react-icons';
 
-import {
-  DetailsItem,
-  Kebab,
-  LabelList,
-  OwnerReferences,
-  ResourceLink,
-  Selector,
-  Timestamp,
-  useAccessReview,
-} from './index';
+import { DetailsItem } from './details-item';
+import { Kebab } from './kebab';
+import { LabelList } from './label-list';
+import { OwnerReferences } from './owner-references';
+import { ResourceLink } from './resource-link';
+import { Selector } from './selector';
+import { Timestamp } from './timestamp';
+import { useAccessReview } from './rbac';
 import { K8sResourceKind, modelFor, referenceFor, Toleration } from '../../module/k8s';
 
 export const pluralize = (
@@ -35,11 +33,6 @@ const getTolerationsPath = (obj: K8sResourceKind): string => {
   return obj.kind === 'Pod' ? 'spec.tolerations' : 'spec.template.spec.tolerations';
 };
 
-const getNodeSelectorPath = (obj: K8sResourceKind): string => {
-  // FIXME: Is this correct for all types (jobs, cron jobs)? It would be better for the embedding page to pass in the path.
-  return obj.kind === 'Pod' ? 'spec.nodeSelector' : 'spec.template.spec.nodeSelector';
-};
-
 export const ResourceSummary: React.SFC<ResourceSummaryProps> = ({
   children,
   resource,
@@ -49,14 +42,13 @@ export const ResourceSummary: React.SFC<ResourceSummaryProps> = ({
   showAnnotations = true,
   showTolerations = false,
   podSelector = 'spec.selector',
+  nodeSelector = 'spec.template.spec.nodeSelector',
 }) => {
   const { metadata, type } = resource;
   const reference = referenceFor(resource);
   const model = modelFor(reference);
-  const nodeSelectorPath = getNodeSelectorPath(resource);
   const tolerationsPath = getTolerationsPath(resource);
   const tolerations: Toleration[] = _.get(resource, tolerationsPath);
-
   const canUpdate = useAccessReview({
     group: model.apiGroup,
     resource: model.plural,
@@ -92,8 +84,8 @@ export const ResourceSummary: React.SFC<ResourceSummaryProps> = ({
         </DetailsItem>
       )}
       {showNodeSelector && (
-        <DetailsItem label="Node Selector" obj={resource} path={nodeSelectorPath}>
-          <Selector kind="Node" selector={_.get(resource, nodeSelectorPath)} />
+        <DetailsItem label="Node Selector" obj={resource} path={nodeSelector}>
+          <Selector kind="Node" selector={_.get(resource, nodeSelector)} />
         </DetailsItem>
       )}
       {showTolerations && (
@@ -156,6 +148,7 @@ export type ResourceSummaryProps = {
   showAnnotations?: boolean;
   showTolerations?: boolean;
   podSelector?: string;
+  nodeSelector?: string;
   children?: React.ReactNode;
   customPathName?: string;
 };

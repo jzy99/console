@@ -14,10 +14,12 @@ import * as catalogPageView from '@console/internal-integration-tests/views/cata
 import * as sidenavView from '@console/internal-integration-tests/views/sidenav.view';
 import * as operatorView from '../views/operator.view';
 import * as operatorHubView from '../views/operator-hub.view';
+import { click } from '@console/shared/src/test-utils/utils';
 
 describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)', () => {
   const prometheusResources = new Set(['StatefulSet', 'Pod']);
   const prometheusOperatorName = 'prometheus-operator';
+  const customProviderUID = 'providerType-console-e-2-e-operators';
 
   const catalogSource = {
     apiVersion: 'operators.coreos.com/v1alpha1',
@@ -71,7 +73,7 @@ describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)',
   it('displays subscription creation form for selected Operator', async () => {
     await catalogView.categoryTabsPresent();
     await catalogView.categoryTabs.get(0).click();
-    await catalogPageView.clickFilterCheckbox('providerType-custom');
+    await catalogPageView.clickFilterCheckbox(customProviderUID);
     await catalogPageView.catalogTileFor('Prometheus Operator').click();
     await browser.wait(until.visibilityOf(operatorHubView.operatorModal));
     await operatorHubView.operatorModalInstallBtn.click();
@@ -98,7 +100,7 @@ describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)',
     await crudView.isLoaded();
     await browser.get(`${appHost}/operatorhub/ns/${testName}`);
     await crudView.isLoaded();
-    await catalogPageView.clickFilterCheckbox('providerType-custom');
+    await catalogPageView.clickFilterCheckbox(customProviderUID);
     await catalogPageView.clickFilterCheckbox('installState-installed');
 
     expect(catalogPageView.catalogTileFor('Prometheus Operator').isDisplayed()).toBe(true);
@@ -112,7 +114,7 @@ describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)',
 
     await browser.wait(
       until.visibilityOf(operatorView.rowForOperator('Prometheus Operator')),
-      30000,
+      60000,
     );
   });
 
@@ -206,6 +208,7 @@ describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)',
     await crudView.isLoaded();
 
     await crudView.rowFiltersPresent();
+    await click(crudView.rowFiltersButton);
     prometheusResources.forEach((kind) => {
       expect(crudView.rowFilterFor(kind).isDisplayed()).toBe(true);
     });
@@ -214,7 +217,7 @@ describe('Interacting with a `OwnNamespace` install mode Operator (Prometheus)',
   it('displays button to uninstall the Operator', async () => {
     await browser.get(`${appHost}/operatorhub/ns/${testName}`);
     await crudView.isLoaded();
-    await catalogPageView.clickFilterCheckbox('providerType-custom');
+    await catalogPageView.clickFilterCheckbox(customProviderUID);
     await catalogPageView.clickFilterCheckbox('installState-installed');
     await catalogPageView.catalogTileFor('Prometheus Operator').click();
     await operatorHubView.operatorModalIsLoaded();

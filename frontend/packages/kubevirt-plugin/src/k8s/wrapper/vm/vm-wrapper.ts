@@ -12,6 +12,7 @@ import {
   isDedicatedCPUPlacement,
   getNodeSelector,
   getTolerations,
+  getAffinity,
 } from '../../../selectors/vm/selectors';
 import { VMWizardNetwork, VMWizardStorage } from '../../../components/create-vm-wizard/types';
 import { VMILikeMethods } from './types';
@@ -75,6 +76,8 @@ export class VMWrapper extends K8sResourceWrapper<VMKind, VMWrapper> implements 
     return disk && Object.keys(disk).includes('serial') && disk.serial;
   };
 
+  getAffinity = () => getAffinity(this.data);
+
   isDedicatedCPUPlacement = () => isDedicatedCPUPlacement(this.data);
 
   addTemplateLabel = (key: string, value: string) => {
@@ -93,9 +96,11 @@ export class VMWrapper extends K8sResourceWrapper<VMKind, VMWrapper> implements 
     return this;
   };
 
-  setMemory = (value: string, unit = 'Gi') => {
+  setMemory = (value: string, suffix?: string) => {
     this.ensurePath('spec.template.spec.domain.resources.requests');
-    this.data.spec.template.spec.domain.resources.requests.memory = `${value}${unit}`;
+    this.data.spec.template.spec.domain.resources.requests.memory = suffix
+      ? `${value}${suffix}`
+      : value;
     return this;
   };
 

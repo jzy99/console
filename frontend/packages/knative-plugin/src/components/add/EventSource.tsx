@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as _ from 'lodash';
 import { Formik } from 'formik';
 import { connect } from 'react-redux';
 import { history } from '@console/internal/components/utils';
@@ -7,17 +8,17 @@ import { RootState } from '@console/internal/redux';
 import { ALL_APPLICATIONS_KEY } from '@console/shared';
 import { K8sResourceKind, modelFor, referenceFor, k8sCreate } from '@console/internal/module/k8s';
 import { FirehoseList } from '@console/dev-console/src/components/import/import-types';
+import { sanitizeApplicationValue } from '@console/dev-console/src/utils/application-utils';
 import { eventSourceValidationSchema } from './eventSource-validation-utils';
 import EventSourceForm from './EventSourceForm';
 import { EventSources, EventSourceFormData } from './import-types';
-import {
-  getEventSourcesDepResource,
-  getEventSourceData,
-} from '../../utils/create-eventsources-utils';
+import { getEventSourceResource, getEventSourceData } from '../../utils/create-eventsources-utils';
 
 interface EventSourceProps {
   namespace: string;
   projects?: FirehoseList;
+  contextSource?: string;
+  selectedApplication?: string;
 }
 
 interface StateProps {
@@ -26,8 +27,15 @@ interface StateProps {
 
 type Props = EventSourceProps & StateProps;
 
-const EventSource: React.FC<Props> = ({ namespace, projects, activeApplication }) => {
+const EventSource: React.FC<Props> = ({
+  namespace,
+  projects,
+  activeApplication,
+  contextSource,
+}) => {
   const typeEventSource = EventSources.CronJobSource;
+  const serviceName = contextSource?.split('/').pop() || '';
+  const name = _.kebabCase(typeEventSource);
   const initialValues: EventSourceFormData = {
     project: {
       name: namespace || '',
@@ -35,13 +43,31 @@ const EventSource: React.FC<Props> = ({ namespace, projects, activeApplication }
       description: '',
     },
     application: {
-      initial: activeApplication,
-      name: activeApplication,
+      initial: sanitizeApplicationValue(activeApplication),
+      name: sanitizeApplicationValue(activeApplication),
       selectedKey: activeApplication,
     },
-    name: '',
+    name,
     sink: {
-      knativeService: '',
+      knativeService: serviceName,
+    },
+    limits: {
+      cpu: {
+        request: '',
+        requestUnit: 'm',
+        defaultRequestUnit: 'm',
+        limit: '',
+        limitUnit: 'm',
+        defaultLimitUnit: 'm',
+      },
+      memory: {
+        request: '',
+        requestUnit: 'Mi',
+        defaultRequestUnit: 'Mi',
+        limit: '',
+        limitUnit: 'Mi',
+        defaultLimitUnit: 'Mi',
+      },
     },
     type: typeEventSource,
     data: {
@@ -50,7 +76,7 @@ const EventSource: React.FC<Props> = ({ namespace, projects, activeApplication }
   };
 
   const createResources = (rawFormData: any): Promise<K8sResourceKind> => {
-    const knEventSourceResource = getEventSourcesDepResource(rawFormData);
+    const knEventSourceResource = getEventSourceResource(rawFormData);
     return k8sCreate(modelFor(referenceFor(knEventSourceResource)), knEventSourceResource);
   };
 
@@ -82,8 +108,8 @@ const EventSource: React.FC<Props> = ({ namespace, projects, activeApplication }
   );
 };
 
-const mapStateToProps = (state: RootState): StateProps => {
-  const activeApplication = getActiveApplication(state);
+const mapStateToProps = (state: RootState, ownProps: EventSourceProps): StateProps => {
+  const activeApplication = ownProps.selectedApplication || getActiveApplication(state);
   return {
     activeApplication: activeApplication !== ALL_APPLICATIONS_KEY ? activeApplication : '',
   };

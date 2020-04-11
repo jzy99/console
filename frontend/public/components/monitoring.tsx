@@ -22,6 +22,7 @@ import * as k8sActions from '../actions/k8s';
 import * as UIActions from '../actions/ui';
 import { coFetchJSON } from '../co-fetch';
 import {
+  alertDescription,
   alertingRuleIsActive,
   AlertSeverity,
   alertState,
@@ -30,7 +31,7 @@ import {
   SilenceStates,
 } from '../reducers/monitoring';
 import store, { RootState } from '../redux';
-import { Table, TableData, TableRow, TextFilter, RowFunction } from './factory';
+import { RowFunction, Table, TableData, TableRow, TextFilter } from './factory';
 import { confirmModal } from './modals';
 import MonitoringDashboardsPage from './monitoring/dashboards';
 import { graphStateToProps, QueryBrowserPage, ToggleGraph } from './monitoring/metrics';
@@ -40,19 +41,15 @@ import { CheckBoxes } from './row-filter';
 import { AlertmanagerYAMLEditorWrapper } from './monitoring/alert-manager-yaml-editor';
 import { AlertmanagerConfigWrapper } from './monitoring/alert-manager-config';
 import { refreshNotificationPollers } from './notification-drawer';
-import {
-  ActionsMenu,
-  ButtonBar,
-  ExternalLink,
-  Firehose,
-  getURLSearchParams,
-  history,
-  Kebab,
-  LoadingInline,
-  SectionHeading,
-  StatusBox,
-  Timestamp,
-} from './utils';
+import { ActionsMenu } from './utils/dropdown';
+import { ButtonBar } from './utils/button-bar';
+import { ExternalLink, getURLSearchParams } from './utils/link';
+import { Firehose } from './utils/firehose';
+import { history } from './utils/router';
+import { Kebab } from './utils/kebab';
+import { LoadingInline, StatusBox } from './utils/status-box';
+import { SectionHeading, ActionButtons } from './utils/headings';
+import { Timestamp } from './utils/timestamp';
 import { formatPrometheusDuration } from './utils/datetime';
 import {
   BlueInfoCircleIcon,
@@ -89,11 +86,6 @@ export const alertURL = (alert, ruleID) =>
   `${AlertResource.plural}/${ruleID}?${labelsToParams(alert.labels)}`;
 const ruleURL = (rule) => `${RuleResource.plural}/${_.get(rule, 'id')}`;
 
-const alertDescription = (alert) => {
-  const { annotations = {}, labels = {} } = alert;
-  return annotations.description || annotations.message || labels.alertname;
-};
-
 const alertsToProps = ({ UI }) => UI.getIn(['monitoring', 'alerts']) || {};
 
 const rulesToProps = (state: RootState) => {
@@ -107,22 +99,22 @@ const silencesToProps = ({ UI }) => UI.getIn(['monitoring', 'silences']) || {};
 const pollers = {};
 const pollerTimeouts = {};
 
-const silenceAlert = (alert) => ({
+const silenceAlert = (alert: Alert) => ({
+  callback: () => history.replace(`${SilenceResource.plural}/~new?${labelsToParams(alert.labels)}`),
   label: 'Silence Alert',
-  href: `${SilenceResource.plural}/~new?${labelsToParams(alert.labels)}`,
 });
 
-const viewAlertRule = (alert) => ({
+const viewAlertRule = (alert: Alert) => ({
   label: 'View Alerting Rule',
   href: ruleURL(alert.rule),
 });
 
-const editSilence = (silence) => ({
+const editSilence = (silence: Silence) => ({
   label: silenceState(silence) === SilenceStates.Expired ? 'Recreate Silence' : 'Edit Silence',
   href: `${SilenceResource.plural}/${silence.id}/edit`,
 });
 
-const cancelSilence = (silence) => ({
+const cancelSilence = (silence: Silence) => ({
   label: 'Expire Silence',
   callback: () =>
     confirmModal({
@@ -136,7 +128,7 @@ const cancelSilence = (silence) => ({
     }),
 });
 
-const silenceMenuActions = (silence) =>
+const silenceMenuActions = (silence: Silence) =>
   silenceState(silence) === SilenceStates.Expired
     ? [editSilence(silence)]
     : [editSilence(silence), cancelSilence(silence)];
@@ -333,6 +325,48 @@ const Graph_: React.FC<GraphProps> = ({
 };
 const Graph = connect(graphStateToProps, { patchQuery: UIActions.queryBrowserPatchQuery })(Graph_);
 
+const tableSilenceClasses = [
+  classNames('col-sm-5', 'col-xs-8'),
+  classNames('col-md-2', 'col-sm-3', 'hidden-xs'),
+  classNames('col-md-3', 'col-sm-4'),
+  classNames('col-md-2', 'hidden-sm'),
+  Kebab.columnClass,
+];
+
+const silenceTableHeader = () => [
+  {
+    title: 'Name',
+    sortField: 'name',
+    transforms: [sortable],
+    props: { className: tableSilenceClasses[0] },
+  },
+  {
+    title: 'Firing Alerts',
+    sortField: 'firingAlerts.length',
+    transforms: [sortable],
+    props: { className: tableSilenceClasses[1] },
+  },
+  {
+    title: 'State',
+    sortFunc: 'silenceStateOrder',
+    transforms: [sortable],
+    props: { className: tableSilenceClasses[2] },
+  },
+  {
+    title: 'Creator',
+    sortField: 'createdBy',
+    transforms: [sortable],
+    props: { className: tableSilenceClasses[3] },
+  },
+  {
+    title: '',
+    props: { className: tableSilenceClasses[4] },
+  },
+];
+
+const silenceTableHeaderNoSort = () =>
+  silenceTableHeader().map((h) => _.pick(h, ['title', 'props']));
+
 const SilenceMatchersList = ({ silence }) => (
   <div className={`co-text-${SilenceResource.kind.toLowerCase()}`}>
     {_.map(silence.matchers, ({ name, isRegex, value }, i) => (
@@ -340,6 +374,45 @@ const SilenceMatchersList = ({ silence }) => (
     ))}
   </div>
 );
+
+const SilenceTableRow: RowFunction<Silence> = ({ index, key, obj, style }) => {
+  const { createdBy, endsAt, firingAlerts, id, name, startsAt } = obj;
+  const state = silenceState(obj);
+
+  return (
+    <TableRow id={id} index={index} trKey={key} style={style}>
+      <TableData className={tableSilenceClasses[0]}>
+        <div className="co-resource-item">
+          <MonitoringResourceIcon resource={SilenceResource} />
+          <Link
+            className="co-resource-item__resource-name"
+            data-test-id="silence-resource-link"
+            title={id}
+            to={`${SilenceResource.plural}/${id}`}
+          >
+            {name}
+          </Link>
+        </div>
+        <div className="monitoring-label-list">
+          <SilenceMatchersList silence={obj} />
+        </div>
+      </TableData>
+      <TableData className={tableSilenceClasses[1]}>
+        {_.isEmpty(firingAlerts) ? '-' : <SeverityCounts alerts={firingAlerts} />}
+      </TableData>
+      <TableData className={classNames(tableSilenceClasses[2], 'co-break-word')}>
+        <SilenceState silence={obj} />
+        {state === SilenceStates.Pending && <StateTimestamp text="Starts" timestamp={startsAt} />}
+        {state === SilenceStates.Active && <StateTimestamp text="Ends" timestamp={endsAt} />}
+        {state === SilenceStates.Expired && <StateTimestamp text="Expired" timestamp={endsAt} />}
+      </TableData>
+      <TableData className={tableSilenceClasses[3]}>{createdBy || '-'}</TableData>
+      <TableData className={tableSilenceClasses[4]}>
+        <SilenceKebab silence={obj} />
+      </TableData>
+    </TableRow>
+  );
+};
 
 const alertStateToProps = (state: RootState, { match }): AlertsDetailsPageProps => {
   const { data, loaded, loadError }: Alerts = alertsToProps(state);
@@ -375,9 +448,9 @@ const AlertsDetailsPage = withFallback(
                 {alertname}
                 <SeverityBadge severity={severity} />
               </div>
-              {(state === AlertStates.Firing || state === AlertStates.Pending) && (
+              {state !== AlertStates.Silenced && (
                 <div className="co-actions" data-test-id="details-actions">
-                  <ActionsMenu actions={[silenceAlert(alert)]} />
+                  <ActionButtons actionButtons={[silenceAlert(alert)]} />
                 </div>
               )}
             </h1>
@@ -470,18 +543,13 @@ const AlertsDetailsPage = withFallback(
                 <SectionHeading text="Silenced By" />
                 <div className="row">
                   <div className="col-xs-12">
-                    <div className="co-m-table-grid co-m-table-grid--bordered">
-                      <div className="row co-m-table-grid__head">
-                        <div className="col-sm-7 col-xs-8">Name</div>
-                        <div className="col-sm-2 hidden-xs">Firing Alerts</div>
-                        <div className="col-sm-3 col-xs-4">State</div>
-                      </div>
-                      <div className="co-m-table-grid__body">
-                        {_.map(silencedBy, (s) => (
-                          <SilenceRow key={s.id} obj={s} />
-                        ))}
-                      </div>
-                    </div>
+                    <Table
+                      aria-label="Silenced By"
+                      data={silencedBy}
+                      Header={silenceTableHeaderNoSort}
+                      loaded={true}
+                      Row={SilenceTableRow}
+                    />
                   </div>
                 </div>
               </div>
@@ -772,7 +840,7 @@ const tableAlertClasses = [
   Kebab.columnClass,
 ];
 
-const AlertTableRow: RowFunction<Alert> = ({ obj, index, key, style }) => {
+const AlertTableRow: RowFunction<Alert> = ({ index, key, obj, style }) => {
   const { annotations = {}, labels } = obj;
   const state = alertState(obj);
 
@@ -803,9 +871,9 @@ const AlertTableRow: RowFunction<Alert> = ({ obj, index, key, style }) => {
       <TableData className={tableAlertClasses[3]}>
         <Kebab
           options={
-            state === AlertStates.Firing || state === AlertStates.Pending
-              ? [silenceAlert(obj), viewAlertRule(obj)]
-              : [viewAlertRule(obj)]
+            state === AlertStates.Silenced
+              ? [viewAlertRule(obj)]
+              : [silenceAlert(obj), viewAlertRule(obj)]
           }
         />
       </TableData>
@@ -813,7 +881,7 @@ const AlertTableRow: RowFunction<Alert> = ({ obj, index, key, style }) => {
   );
 };
 
-const AlertTableHeader = () => [
+const alertTableHeader = () => [
   {
     title: 'Name',
     sortField: 'labels.alertname',
@@ -971,10 +1039,10 @@ const MonitoringListPage = connect(filtersToProps)(
 const AlertsPage_ = (props) => (
   <MonitoringListPage
     {...props}
-    Header={AlertTableHeader}
+    Header={alertTableHeader}
     kindPlural="Alerts"
-    nameFilterID="alert-name"
-    reduxID="monitoringRules"
+    nameFilterID="alert-list-text"
+    reduxID="monitoringAlerts"
     Row={AlertTableRow}
     rowFilter={alertsRowFilter}
   />
@@ -997,7 +1065,7 @@ const tableRuleClasses = [
   classNames('col-sm-4', 'col-xs-5'),
 ];
 
-const RuleTableHeader = () => [
+const ruleTableHeader = () => [
   {
     title: 'Name',
     sortField: 'name',
@@ -1018,7 +1086,7 @@ const RuleTableHeader = () => [
   },
 ];
 
-const RuleTableRow: RowFunction<Rule> = ({ obj, index, key, style }) => (
+const RuleTableRow: RowFunction<Rule> = ({ index, key, obj, style }) => (
   <TableRow id={obj.id} index={index} trKey={key} style={style}>
     <TableData className={tableRuleClasses[0]}>
       <div className="co-resource-item">
@@ -1040,128 +1108,15 @@ const RuleTableRow: RowFunction<Rule> = ({ obj, index, key, style }) => (
 const RulesPage_ = (props) => (
   <MonitoringListPage
     {...props}
-    Header={RuleTableHeader}
+    Header={ruleTableHeader}
     kindPlural="Alerting Rules"
     nameFilterID="alerting-rule-name"
+    reduxID="monitoringRules"
     Row={RuleTableRow}
     rowFilter={rulesRowFilter}
   />
 );
 const RulesPage = withFallback(connect(rulesToProps)(RulesPage_));
-
-const tableSilenceClasses = [
-  classNames('col-sm-7', 'col-xs-8'),
-  classNames('col-sm-3', 'col-xs-4'),
-  classNames('col-sm-2', 'hidden-xs'),
-  Kebab.columnClass,
-];
-
-const SilenceTableHeader = () => [
-  {
-    title: 'Name',
-    sortField: 'name',
-    transforms: [sortable],
-    props: { className: tableSilenceClasses[0] },
-  },
-  {
-    title: 'Firing Alerts',
-    sortField: 'firingAlerts.length',
-    transforms: [sortable],
-    props: { className: tableSilenceClasses[1] },
-  },
-  {
-    title: 'State',
-    sortFunc: 'silenceStateOrder',
-    transforms: [sortable],
-    props: { className: tableSilenceClasses[2] },
-  },
-  {
-    title: '',
-    props: { className: tableSilenceClasses[3] },
-  },
-];
-
-const SilenceRow = ({ obj }) => {
-  const state = silenceState(obj);
-
-  return (
-    <div className="row co-resource-list__item">
-      <div className="col-sm-7 col-xs-8">
-        <div className="co-resource-item">
-          <MonitoringResourceIcon resource={SilenceResource} />
-          <Link
-            className="co-resource-item__resource-name"
-            data-test-id="silence-resource-link"
-            title={obj.id}
-            to={`${SilenceResource.plural}/${obj.id}`}
-          >
-            {obj.name}
-          </Link>
-        </div>
-        <div className="monitoring-label-list">
-          <SilenceMatchersList silence={obj} />
-        </div>
-      </div>
-      <div className="col-sm-2 hidden-xs">
-        <SeverityCounts alerts={obj.firingAlerts} />
-      </div>
-      <div className="col-sm-3 col-xs-4">
-        <SilenceState silence={obj} />
-        {state === SilenceStates.Pending && (
-          <StateTimestamp text="Starts" timestamp={obj.startsAt} />
-        )}
-        {state === SilenceStates.Active && <StateTimestamp text="Ends" timestamp={obj.endsAt} />}
-        {state === SilenceStates.Expired && (
-          <StateTimestamp text="Expired" timestamp={obj.endsAt} />
-        )}
-      </div>
-      <div className="dropdown-kebab-pf">
-        <SilenceKebab silence={obj} />
-      </div>
-    </div>
-  );
-};
-
-const SilenceTableRow: RowFunction<Silence> = ({ obj, index, key, style }) => {
-  const state = silenceState(obj);
-
-  return (
-    <TableRow id={obj.id} index={index} trKey={key} style={style}>
-      <TableData className={tableSilenceClasses[0]}>
-        <div className="co-resource-item">
-          <MonitoringResourceIcon resource={SilenceResource} />
-          <Link
-            className="co-resource-item__resource-name"
-            data-test-id="silence-resource-link"
-            title={obj.id}
-            to={`${SilenceResource.plural}/${obj.id}`}
-          >
-            {obj.name}
-          </Link>
-        </div>
-        <div className="monitoring-label-list">
-          <SilenceMatchersList silence={obj} />
-        </div>
-      </TableData>
-      <TableData className={tableSilenceClasses[1]}>
-        <SeverityCounts alerts={obj.firingAlerts} />
-      </TableData>
-      <TableData className={classNames(tableSilenceClasses[2], 'co-break-word')}>
-        <SilenceState silence={obj} />
-        {state === SilenceStates.Pending && (
-          <StateTimestamp text="Starts" timestamp={obj.startsAt} />
-        )}
-        {state === SilenceStates.Active && <StateTimestamp text="Ends" timestamp={obj.endsAt} />}
-        {state === SilenceStates.Expired && (
-          <StateTimestamp text="Expired" timestamp={obj.endsAt} />
-        )}
-      </TableData>
-      <TableData className={tableSilenceClasses[3]}>
-        <SilenceKebab silence={obj} />
-      </TableData>
-    </TableRow>
-  );
-};
 
 const silencesRowFilter = {
   type: 'silence-state',
@@ -1184,7 +1139,7 @@ const SilencesPage_ = (props) => (
   <MonitoringListPage
     {...props}
     CreateButton={CreateButton}
-    Header={SilenceTableHeader}
+    Header={silenceTableHeader}
     kindPlural="Silences"
     nameFilterID="silence-name"
     reduxID="monitoringSilences"
@@ -1309,49 +1264,70 @@ class SilenceForm_ extends React.Component<SilenceFormProps, SilenceFormState> {
   };
 
   render() {
-    const { Info, saveButtonText, title } = this.props;
+    const { Info, title } = this.props;
     const { data, error, inProgress } = this.state;
 
     return (
-      <div className="co-m-pane__body co-m-pane__form">
+      <>
         <Helmet>
           <title>{title}</title>
         </Helmet>
-        <form className="co-m-pane__body-group silence-form" onSubmit={this.onSubmit}>
-          <SectionHeading text={title} />
+        <div className="co-m-nav-title co-m-nav-title--detail">
+          <h1 className="co-m-pane__heading">{title}</h1>
           <p className="co-m-pane__explanation">
-            A silence is configured based on matchers (label selectors). No notification will be
-            sent out for alerts that match all the values or regular expressions.
+            Silences temporarily mute alerts based on a set of label selectors that you define.
+            Notifications will not be sent for alerts that match all the listed values or regular
+            expressions.
           </p>
-          <hr />
-          {Info && <Info />}
+        </div>
 
-          <div className="form-group">
-            <label className="co-required">Start</label>
-            <Datetime onChange={this.onFieldChange('startsAt')} value={data.startsAt} required />
-          </div>
-          <div className="form-group">
-            <label className="co-required">End</label>
-            <Datetime onChange={this.onFieldChange('endsAt')} value={data.endsAt} required />
-          </div>
-          <div className="co-form-section__separator" />
+        {Info && <Info />}
 
-          <div className="form-group">
-            <label className="co-required">Matchers (label selectors)</label>
-            <p className="co-help-text">
-              Alerts affected by this silence. Matching alerts must satisfy all of the specified
-              label constraints, though they may have additional labels as well.
-            </p>
-            <div className="row monitoring-grid-head text-secondary text-uppercase">
-              <div className="col-xs-5">Name</div>
-              <div className="col-xs-6">Value</div>
-            </div>
-            {_.map(data.matchers, (matcher, i) => (
-              <div className="row form-group" key={i}>
-                <div className="col-xs-10">
+        <div className="co-m-pane__body">
+          <form onSubmit={this.onSubmit}>
+            <div className="co-m-pane__body-group">
+              <div className="form-group row">
+                <div className="col-xs-9">
+                  <SectionHeading text="Duration" />
                   <div className="row">
-                    <div className="col-xs-6 pairs-list__name-field">
-                      <div className="form-group">
+                    <div className="col-xs-6">
+                      <label>Silence alert from...</label>
+                      <Datetime
+                        onChange={this.onFieldChange('startsAt')}
+                        value={data.startsAt}
+                        required
+                      />
+                    </div>
+                    <div className="col-xs-6">
+                      <label>Until...</label>
+                      <Datetime
+                        onChange={this.onFieldChange('endsAt')}
+                        value={data.endsAt}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="co-m-pane__body-group">
+              <div className="form-group row">
+                <div className="col-xs-9">
+                  <SectionHeading text="Alert Labels" />
+                  <p className="co-help-text">
+                    Alerts with labels that match these selectors will be silenced instead of
+                    firing. Label values can be matched exactly or with a regular expression.
+                  </p>
+                </div>
+              </div>
+
+              {_.map(data.matchers, (matcher, i) => (
+                <div className="form-group row" key={i}>
+                  <div className="col-xs-9">
+                    <div className="row">
+                      <div className="col-xs-6">
+                        <label>Label name</label>
                         <Text
                           onChange={this.onFieldChange(`matchers[${i}].name`)}
                           placeholder="Name"
@@ -1359,9 +1335,8 @@ class SilenceForm_ extends React.Component<SilenceFormProps, SilenceFormState> {
                           required
                         />
                       </div>
-                    </div>
-                    <div className="col-xs-6 pairs-list__value-field">
-                      <div className="form-group">
+                      <div className="col-xs-6">
+                        <label>Label value</label>
                         <Text
                           onChange={this.onFieldChange(`matchers[${i}].value`)}
                           placeholder="Value"
@@ -1371,70 +1346,77 @@ class SilenceForm_ extends React.Component<SilenceFormProps, SilenceFormState> {
                       </div>
                     </div>
                   </div>
-                  <div className="row">
-                    <div className="col-xs-12 col-sm-12">
-                      <div className="form-group">
-                        <label className="co-no-bold">
-                          <input
-                            type="checkbox"
-                            onChange={(e) => this.onIsRegexChange(e, i)}
-                            checked={matcher.isRegex}
-                          />
-                          &nbsp; Regular Expression
-                        </label>
-                      </div>
+                  <div className="col-xs-3 monitoring-silence-reg-ex">
+                    <label>&nbsp;</label>
+                    <div>
+                      <label>
+                        <input
+                          type="checkbox"
+                          onChange={(e) => this.onIsRegexChange(e, i)}
+                          checked={matcher.isRegex}
+                        />
+                        &nbsp; Use RegEx
+                      </label>
+                      <Button
+                        className="monitoring-silence-remove-button"
+                        type="button"
+                        onClick={() => this.removeMatcher(i)}
+                        aria-label="Remove matcher"
+                        variant="plain"
+                      >
+                        <MinusCircleIcon />
+                      </Button>
                     </div>
                   </div>
                 </div>
-                <div className="col-xs-2 pairs-list__action">
+              ))}
+
+              <div className="form-group row">
+                <div className="col-xs-9">
                   <Button
+                    className="pf-m-link--align-left"
+                    onClick={this.addMatcher}
                     type="button"
-                    onClick={() => this.removeMatcher(i)}
-                    aria-label="Remove matcher"
-                    variant="plain"
+                    variant="link"
                   >
-                    <MinusCircleIcon />
+                    <PlusCircleIcon className="co-icon-space-r" />
+                    Add Label
                   </Button>
                 </div>
               </div>
-            ))}
-            <Button
-              className="pf-m-link--align-left"
-              onClick={this.addMatcher}
-              type="button"
-              variant="link"
-            >
-              <PlusCircleIcon className="co-icon-space-r" />
-              Add More
-            </Button>
-          </div>
-          <div className="co-form-section__separator" />
+            </div>
 
-          <div className="form-group">
-            <label>Creator</label>
-            <Text onChange={this.onFieldChange('createdBy')} value={data.createdBy} />
-          </div>
-          <div className="form-group">
-            <label>Comment</label>
-            <textarea
-              className="pf-c-form-control"
-              onChange={this.onFieldChange('comment')}
-              value={data.comment}
-            />
-          </div>
+            <div className="row">
+              <div className="col-xs-9">
+                <SectionHeading text="Info" />
+                <div className="form-group">
+                  <label>Creator</label>
+                  <Text onChange={this.onFieldChange('createdBy')} value={data.createdBy} />
+                </div>
+                <div className="form-group">
+                  <label>Comment</label>
+                  <textarea
+                    className="pf-c-form-control"
+                    onChange={this.onFieldChange('comment')}
+                    value={data.comment}
+                  />
+                </div>
+              </div>
+            </div>
 
-          <ButtonBar errorMessage={error} inProgress={inProgress}>
-            <ActionGroup className="pf-c-form">
-              <Button type="submit" variant="primary">
-                {saveButtonText || 'Save'}
-              </Button>
-              <Button onClick={history.goBack} variant="secondary">
-                Cancel
-              </Button>
-            </ActionGroup>
-          </ButtonBar>
-        </form>
-      </div>
+            <ButtonBar errorMessage={error} inProgress={inProgress}>
+              <ActionGroup className="pf-c-form">
+                <Button type="submit" variant="primary">
+                  Silence
+                </Button>
+                <Button onClick={history.goBack} variant="secondary">
+                  Cancel
+                </Button>
+              </ActionGroup>
+            </ButtonBar>
+          </form>
+        </div>
+      </>
     );
   }
 }
@@ -1473,9 +1455,9 @@ const EditSilence = connect(silenceParamToProps)(({ loaded, loadError, silence }
 const CreateSilence_ = ({ createdBy }) => {
   const matchers = _.map(getURLSearchParams(), (value, name) => ({ name, value, isRegex: false }));
   return _.isEmpty(matchers) ? (
-    <SilenceForm defaults={{ createdBy }} saveButtonText="Create" title="Create Silence" />
+    <SilenceForm defaults={{ createdBy }} title="Create Silence" />
   ) : (
-    <SilenceForm defaults={{ createdBy, matchers }} saveButtonText="Create" title="Silence Alert" />
+    <SilenceForm defaults={{ createdBy, matchers }} title="Silence Alert" />
   );
 };
 const createSilenceStateToProps = ({ UI }: RootState) => ({
@@ -1755,7 +1737,6 @@ export type SilencesDetailsPageProps = {
 export type SilenceFormProps = {
   defaults?: any;
   Info: React.ComponentType<{}>;
-  saveButtonText?: string;
   title: string;
   urls: { key: string }[];
 };

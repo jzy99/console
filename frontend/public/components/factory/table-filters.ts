@@ -1,6 +1,7 @@
 import * as _ from 'lodash-es';
 import * as fuzzy from 'fuzzysearch';
 import { nodeStatus } from '@console/app/src/status/node';
+import { getNodeRole, getLabelsAsString } from '@console/shared';
 import { routeStatus } from '../routes';
 import { secretTypeFilterReducer } from '../secret';
 import { bindingType, roleType } from '../RBAC';
@@ -15,7 +16,12 @@ import {
   getTemplateInstanceStatus,
 } from '../../module/k8s';
 
-import { alertingRuleIsActive, alertState, silenceState } from '../../reducers/monitoring';
+import {
+  alertingRuleIsActive,
+  alertDescription,
+  alertState,
+  silenceState,
+} from '../../reducers/monitoring';
 
 export const fuzzyCaseInsensitive = (a: string, b: string): boolean =>
   fuzzy(_.toLower(a), _.toLower(b));
@@ -26,7 +32,9 @@ export const tableFilters: TableFilterMap = {
 
   'catalog-source-name': (filter, obj) => fuzzyCaseInsensitive(filter, obj.name),
 
-  'alert-name': (filter, alert) => fuzzyCaseInsensitive(filter, _.get(alert, 'labels.alertname')),
+  'alert-list-text': (filter, alert) =>
+    fuzzyCaseInsensitive(filter, alert.labels?.alertname) ||
+    fuzzyCaseInsensitive(filter, alertDescription(alert)),
 
   'alert-state': (filter, alert) => filter.selected.has(alertState(alert)),
 
@@ -76,6 +84,14 @@ export const tableFilters: TableFilterMap = {
     return selector.values.has(_.get(obj, selector.field));
   },
 
+  labels: (values, obj) => {
+    const labels = getLabelsAsString(obj);
+    if (!values.all) {
+      return true;
+    }
+    return !!values.all.every((v) => labels.includes(v));
+  },
+
   'pod-status': (phases, pod) => {
     if (!phases || !phases.selected || !phases.selected.size) {
       return true;
@@ -92,6 +108,14 @@ export const tableFilters: TableFilterMap = {
 
     const status = nodeStatus(node);
     return statuses.selected.has(status) || !_.includes(statuses.all, status);
+  },
+
+  'node-role': (roles, node) => {
+    if (!roles || !roles.selected || !roles.selected.size) {
+      return true;
+    }
+    const role = getNodeRole(node);
+    return roles.selected.has(role);
   },
 
   'clusterserviceversion-resource-kind': (filters, resource) => {

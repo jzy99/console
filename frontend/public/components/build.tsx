@@ -175,7 +175,7 @@ export const PipelineBuildStrategyAlert: React.FC<BuildsDetailsProps> = () => {
     <Alert isInline className="co-alert" variant="info" title="Pipeline build strategy deprecation">
       With the release of{' '}
       <ExternalLink
-        href="https://openshift.github.io/pipelines-docs/docs/"
+        href="https://openshift.github.io/pipelines-docs/"
         text="OpenShift Pipelines based on Tekton"
       />
       , the pipelines build strategy has been deprecated. Users should either use Jenkins files
@@ -390,8 +390,8 @@ export const buildPhase = (build) => build.status.phase;
 const allPhases = ['New', 'Pending', 'Running', 'Complete', 'Failed', 'Error', 'Cancelled'];
 const filters = [
   {
+    filterGroupName: 'Status',
     type: 'build-status',
-    selected: allPhases,
     reducer: buildPhase,
     items: _.map(allPhases, (phase) => ({
       id: phase,

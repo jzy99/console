@@ -326,6 +326,7 @@ const PodGraphs = requirePrometheus(({ pod }) => (
         <Area
           title="Network In"
           humanize={humanizeDecimalBytesPerSec}
+          namespace={pod.metadata.namespace}
           query={`sum(irate(container_network_receive_bytes_total{pod='${pod.metadata.name}', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
         />
       </div>
@@ -333,6 +334,7 @@ const PodGraphs = requirePrometheus(({ pod }) => (
         <Area
           title="Network Out"
           humanize={humanizeDecimalBytesPerSec}
+          namespace={pod.metadata.namespace}
           query={`sum(irate(container_network_transmit_bytes_total{pod='${pod.metadata.name}', namespace='${pod.metadata.namespace}'}[5m])) by (pod, namespace)`}
         />
       </div>
@@ -368,7 +370,12 @@ export const PodDetailsList: React.FC<PodDetailsListProps> = ({ pod }) => {
 };
 
 export const PodResourceSummary: React.FC<PodResourceSummaryProps> = ({ pod }) => (
-  <ResourceSummary resource={pod} showNodeSelector showTolerations />
+  <ResourceSummary
+    resource={pod}
+    showNodeSelector
+    nodeSelector="spec.nodeSelector"
+    showTolerations
+  />
 );
 
 const Details: React.FC<PodDetailsProps> = ({ obj: pod }) => {
@@ -500,8 +507,8 @@ PodList.displayName = 'PodList';
 
 const filters = [
   {
+    filterGroupName: 'Status',
     type: 'pod-status',
-    selected: ['Running', 'Pending', 'Terminating', 'CrashLoopBackOff'],
     reducer: podPhaseFilterReducer,
     items: [
       { id: 'Running', title: 'Running' },

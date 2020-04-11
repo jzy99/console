@@ -17,7 +17,7 @@ interface Configuration extends webpack.Configuration {
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const HOT_RELOAD = process.env.HOT_RELOAD || 'false';
+const HOT_RELOAD = process.env.HOT_RELOAD || 'true';
 const CHECK_CYCLES = process.env.CHECK_CYCLES || 'false';
 
 /* Helpers */
@@ -169,6 +169,9 @@ if (CHECK_CYCLES === 'true') {
   new CircularDependencyPreset({
     exclude: /node_modules|public\/dist/,
     reportFile: '.webpack-cycles',
+    thresholds: {
+      minLengthCycles: 17,
+    },
   }).apply(config.plugins);
 }
 
