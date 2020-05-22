@@ -248,9 +248,7 @@ const LegendContainer = ({ children }: { children?: React.ReactNode }) => {
 };
 
 const Graph: React.FC<GraphProps> = React.memo(
-  ({ allSeries, disabledSeries, formatLegendLabel, isStack, span, xDomain }) => {
-    const [containerRef, width] = useRefWidth();
-
+  ({ allSeries, disabledSeries, formatLegendLabel, isStack, span, width, xDomain }) => {
     // Remove any disabled series
     const data = _.flatMap(allSeries, (series, i) => {
       return _.map(series, ([metric, values]) => {
@@ -313,47 +311,43 @@ const Graph: React.FC<GraphProps> = React.memo(
       : undefined;
 
     return (
-      <div ref={containerRef} style={{ width: '100%' }}>
-        {width > 0 && (
-          <Chart
-            containerComponent={graphContainer}
-            domain={domain}
-            domainPadding={{ y: 1 }}
-            height={200}
-            scale={{ x: 'time', y: 'linear' }}
-            theme={chartTheme}
-            width={width}
-          >
-            <ChartAxis style={xAxisStyle} tickCount={5} tickFormat={xTickFormat} />
-            <ChartAxis crossAxis={false} dependentAxis tickCount={6} tickFormat={yTickFormat} />
-            {isStack ? (
-              <ChartStack>
-                {_.map(data, (values, i) => (
-                  <ChartArea key={i} data={values} />
-                ))}
-              </ChartStack>
-            ) : (
-              <ChartGroup>
-                {_.map(data, (values, i) => (
-                  <ChartLine key={i} data={values} />
-                ))}
-              </ChartGroup>
-            )}
-            {legendData && (
-              <ChartLegend
-                data={legendData}
-                groupComponent={<LegendContainer />}
-                itemsPerRow={4}
-                orientation="vertical"
-                style={{
-                  labels: { fontSize: 11 },
-                }}
-                symbolSpacer={4}
-              />
-            )}
-          </Chart>
+      <Chart
+        containerComponent={graphContainer}
+        domain={domain}
+        domainPadding={{ y: 1 }}
+        height={200}
+        scale={{ x: 'time', y: 'linear' }}
+        theme={chartTheme}
+        width={width}
+      >
+        <ChartAxis style={xAxisStyle} tickCount={5} tickFormat={xTickFormat} />
+        <ChartAxis crossAxis={false} dependentAxis tickCount={6} tickFormat={yTickFormat} />
+        {isStack ? (
+          <ChartStack>
+            {_.map(data, (values, i) => (
+              <ChartArea key={i} data={values} />
+            ))}
+          </ChartStack>
+        ) : (
+          <ChartGroup>
+            {_.map(data, (values, i) => (
+              <ChartLine key={i} data={values} />
+            ))}
+          </ChartGroup>
         )}
-      </div>
+        {legendData && (
+          <ChartLegend
+            data={legendData}
+            groupComponent={<LegendContainer />}
+            itemsPerRow={4}
+            orientation="vertical"
+            style={{
+              labels: { fontSize: 11 },
+            }}
+            symbolSpacer={4}
+          />
+        )}
+      </Chart>
     );
   },
 );
@@ -419,6 +413,7 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
   isStack,
   onZoom,
   span,
+  width,
   xDomain,
 }) => {
   const [isZooming, setIsZooming] = React.useState(false);
@@ -447,10 +442,10 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
       return;
     }
 
-    const { width } = e.currentTarget.getBoundingClientRect();
+    const zoomWidth = e.currentTarget.getBoundingClientRect().width;
     const oldFrom = _.get(xDomain, '[0]', Date.now() - span);
-    let from = oldFrom + (span * xMin) / width;
-    let to = oldFrom + (span * xMax) / width;
+    let from = oldFrom + (span * xMin) / zoomWidth;
+    let to = oldFrom + (span * xMax) / zoomWidth;
     let newSpan = to - from;
 
     if (newSpan < minSpan) {
@@ -478,6 +473,7 @@ const ZoomableGraph: React.FC<ZoomableGraphProps> = ({
         formatLegendLabel={formatLegendLabel}
         isStack={isStack}
         span={span}
+        width={width}
         xDomain={xDomain}
       />
     </div>
@@ -523,6 +519,8 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   const [graphData, setGraphData] = React.useState(null);
   const [samples, setSamples] = React.useState(maxSamplesForSpan);
   const [updating, setUpdating] = React.useState(true);
+
+  const [containerRef, width] = useRefWidth();
 
   const endTime = _.get(xDomain, '[1]');
 
@@ -637,7 +635,18 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   );
 
   if (hideGraphs) {
-    return error && !isRangeVector ? <Error error={error} /> : null;
+    // Still render the graph containers so that `width` continues to be tracked while the graph is
+    // hidden. This ensures we can render at the correct width when the graph is shown again.
+    return (
+      <>
+        {error && !isRangeVector && <Error error={error} />}
+        <div className="query-browser__wrapper query-browser__wrapper--hidden">
+          <div className="graph-wrapper graph-wrapper--query-browser">
+            <div ref={containerRef} style={{ width: '100%' }}></div>
+          </div>
+        </div>
+      </>
+    );
   }
 
   if (isRangeVector) {
@@ -696,26 +705,34 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
             />
           )}
           <div className="graph-wrapper graph-wrapper--query-browser">
-            {hideControls ? (
-              <Graph
-                allSeries={graphData}
-                disabledSeries={disabledSeries}
-                formatLegendLabel={formatLegendLabel}
-                isStack={stack}
-                span={span}
-                xDomain={xDomain}
-              />
-            ) : (
-              <ZoomableGraph
-                allSeries={graphData}
-                disabledSeries={disabledSeries}
-                formatLegendLabel={formatLegendLabel}
-                isStack={stack}
-                onZoom={onZoom}
-                span={span}
-                xDomain={xDomain}
-              />
-            )}
+            <div ref={containerRef} style={{ width: '100%' }}>
+              {width > 0 && (
+                <>
+                  {hideControls ? (
+                    <Graph
+                      allSeries={graphData}
+                      disabledSeries={disabledSeries}
+                      formatLegendLabel={formatLegendLabel}
+                      isStack={stack}
+                      span={span}
+                      width={width}
+                      xDomain={xDomain}
+                    />
+                  ) : (
+                    <ZoomableGraph
+                      allSeries={graphData}
+                      disabledSeries={disabledSeries}
+                      formatLegendLabel={formatLegendLabel}
+                      isStack={stack}
+                      onZoom={onZoom}
+                      span={span}
+                      width={width}
+                      xDomain={xDomain}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -772,18 +789,11 @@ type GraphProps = {
   formatLegendLabel?: FormatLegendLabel;
   isStack?: boolean;
   span: number;
+  width: number;
   xDomain?: AxisDomain;
 };
 
-type ZoomableGraphProps = {
-  allSeries: Series[][];
-  disabledSeries?: PrometheusLabels[][];
-  formatLegendLabel?: FormatLegendLabel;
-  isStack?: boolean;
-  onZoom: (from: number, to: number) => void;
-  span: number;
-  xDomain?: AxisDomain;
-};
+type ZoomableGraphProps = GraphProps & { onZoom: (from: number, to: number) => void };
 
 export type QueryBrowserProps = {
   defaultSamples?: number;

@@ -58,16 +58,17 @@ export type NodePortService = {
   type: string;
 };
 
-export type VMConfig = {
+export type KubevirtResourceConfig = {
   name: string;
-  description: string;
+  description?: string;
+  flavorConfig: FlavorConfig;
   template?: string;
   provisionSource?: ProvisionOption;
   operatingSystem?: string;
-  flavorConfig?: FlavorConfig;
   workloadProfile?: string;
-  startOnCreation: boolean;
-  cloudInit: CloudInitConfig;
+  startOnCreation?: boolean;
+  waitForDiskImport?: boolean;
+  cloudInit?: CloudInitConfig;
   storageResources: StorageResource[];
   CDRoms?: StorageResource[];
   networkResources: NetworkResource[];
@@ -112,16 +113,22 @@ export type ProvisionConfig = {
   CDRoms?: StorageResource[];
 };
 
-export type VMTemplateConfig = {
-  name: string;
-  description: string;
-  provisionSource?: ProvisionOption;
-  operatingSystem?: string;
-  flavorConfig?: FlavorConfig;
-  workloadProfile?: string;
-  cloudInit?: CloudInitConfig;
-  storageResources?: StorageResource[];
-  networkResources?: NetworkResource[];
+export type Status = VM_STATUS | POD_STATUS;
+
+// Not an actual type, since VM Templates are just templates
+// Used as a convenience type for VirtualMachineTemplate class
+// and distinguishing it from VirtualMachine/VirtualMachineInstance
+// and for UI navigation purposes
+export const VirtualMachineTemplateModel: K8sKind = {
+  label: 'Virtual Machine Template',
+  labelPlural: 'Virtual Machine Templates',
+  apiVersion: 'v1alpha3',
+  apiGroup: 'kubevirt.io',
+  plural: 'vmtemplates',
+  abbr: '',
+  namespaced: true,
+  kind: 'Template',
+  id: 'template',
 };
 
 export type Status = VM_STATUS | POD_STATUS;

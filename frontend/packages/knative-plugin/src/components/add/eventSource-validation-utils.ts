@@ -77,9 +77,78 @@ export const sourceDataSpecSchema = yup
     is: EventSources.KafkaSource,
     then: yup.object().shape({
       kafkasource: yup.object().shape({
-        bootstrapServers: yup.string().required('Required'),
+        bootstrapServers: yup.array().of(yup.string().required('Required')),
         consumerGroup: yup.string().required('Required'),
-        topics: yup.string().required('Required'),
+        topics: yup.array().of(yup.string().required('Required')),
+        net: yup.object().shape({
+          sasl: yup.object().shape({
+            enable: yup.boolean(),
+            user: yup.object().when('enable', {
+              is: true,
+              then: yup.object().shape({
+                secretKeyRef: yup.object().shape({
+                  name: yup.string().required('Required'),
+                  key: yup.string().required('Required'),
+                }),
+              }),
+            }),
+            password: yup.object().when('enable', {
+              is: true,
+              then: yup.object().shape({
+                secretKeyRef: yup.object().shape({
+                  name: yup.string().required('Required'),
+                  key: yup.string().required('Required'),
+                }),
+              }),
+            }),
+          }),
+          tls: yup.object().shape({
+            enable: yup.boolean(),
+            caCert: yup.object().when('enable', {
+              is: true,
+              then: yup.object().shape({
+                secretKeyRef: yup.object().shape({
+                  name: yup.string().required('Required'),
+                  key: yup.string().required('Required'),
+                }),
+              }),
+            }),
+            cert: yup.object().when('enable', {
+              is: true,
+              then: yup.object().shape({
+                secretKeyRef: yup.object().shape({
+                  name: yup.string().required('Required'),
+                  key: yup.string().required('Required'),
+                }),
+              }),
+            }),
+            key: yup.object().when('enable', {
+              is: true,
+              then: yup.object().shape({
+                secretKeyRef: yup.object().shape({
+                  name: yup.string().required('Required'),
+                  key: yup.string().required('Required'),
+                }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  })
+  .when('type', {
+    is: EventSources.ContainerSource,
+    then: yup.object().shape({
+      containersource: yup.object().shape({
+        template: yup.object({
+          spec: yup.object({
+            containers: yup.array().of(
+              yup.object({
+                image: yup.string().required('Required'),
+              }),
+            ),
+          }),
+        }),
       }),
     }),
   })
